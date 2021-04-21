@@ -8,6 +8,9 @@
 
 \usepackage{multirow}     % for multi-row table
 \usepackage{booktabs}     % table style used in books
+%\usepackage{graphviz}     % graphviz to draw graph
+\usepackage{tikz}         % tikz to draw graph
+\usetikzlibrary{arrows}
 
 %-------------------------------------------------------------------------------
 % Configuration
@@ -65,10 +68,12 @@
 
 % 內文, 請依照章節順序擺放
 \input{chapters/1-intro}
-\input{chapters/2-system}
-\input{chapters/3-evaluation}
-\input{chapters/4-conclusion}
-\input{chapters/5-ref}
+\input{chapters/2-background}
+\input{chapters/3-system}
+\input{chapters/4-evaluation}
+\input{chapters/5-conclusion}
+\input{chapters/6-future}
+\input{chapters/7-ref}
 
 %-------------------------------------------------------------------------------
 % 參考文獻
@@ -104,7 +109,7 @@
 \addAppxToContents
 
 % 請從此開始依序擺放附錄
-\input{appx/1-appendix}
+%\input{appx/1-appendix}
 
 %-------------------------------------------------------------------------------
 % 作者簡歷
