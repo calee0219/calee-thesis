@@ -11,4 +11,6 @@
 *.spl
 *.out
 *.swp
+*.dot
+*.ps
 main.pdf

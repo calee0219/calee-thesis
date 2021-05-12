@@ -4,7 +4,7 @@
 為驗證本論文設計之方法，將 free5GC 核心網路移植至 OpenNetVM，使用其所提供之 ABI 能有效提升核心網路之效能，本實驗分別對原生之 free5GC 核心網路部屬於 Ubuntu Linux，與經過 OpenNetVM 移植過後之 free5GC 核心網路一樣部屬於 Ubuntu Linux，分別對其控制端(control plane)與用戶端(user plane)之效能進行測試，最終比對其結果，以驗證經過 OpenNetVM 移植過後的 free5GC 核心網路確實能有效提供更好的性能。
 
 \section{實驗環境設定}
-\label{sec:evaluation}
+\label{sec:evaluation_env}
 
 我們所使用的硬體與軟體規格如下：
 \begin{itemize}
@@ -15,7 +15,11 @@
 \item 作業系統核心版本: 3.10.0-1127.el7.x86\_64
 \end{itemize}
 
-我們的實驗大致將總體系統分為三個部件，邊緣端(edge)、核心網路(core network)、與數據網路端(data network)。邊緣端在真實網路下即是手機、基地臺與相關部件(conponent)，在我們的實驗中，會在這部分產生流量，往核心網路端發送，來達到手機上網的模擬。核心網路如第二章節所講解的，是第五代行動通訊網路中，放在機房(data center)中，負責統籌處理控制訊號(control plane)與轉發(forward)、封裝(encapsulate)、解封裝(decapsulate)使用者訊號(user plane)。而數據網路(data network)，則是泛指傳統網路(the Internet)，即為大多數時候，手機使用者想要存取(access)的服務之所在位置。
+我們的實驗在邏輯上(logically)將系統分為三個部件(component)，邊緣端(edge)、核心網路(core network)、與數據網路(data network)。邊緣端在真實網路下即是手機、基地臺與相關部件，以下會以 UE-RAN simulator 代稱。核心網路如第二章節所講解的，是第五代行動通訊網路中，放在機房(data center)中，負責統籌處理控制端(control plane)與轉發(forward)、封裝(encapsulate)、解封裝(decapsulate)使用者端(user plane)。而數據網路(data network)，則是泛指傳統網路(the Internet)，即為大多數時候，手機使用者想要存取(access)的服務之所在位置。
+
+在務實面(physically)上將系統切分成三個節點，分別模擬使用者端發送、轉發、
+
+為了準確的區分 traffic generating 與 forwarding 的中央處理器(以下簡稱 CPU)使用率，避免單一 CPU 需要同時產生流量與處理流量，我們的測試方法將流量產生器(traffic generator)、核心網路、流量接收者 (traffic receiver) 分別部屬於不同的機器上，讓三者得以完全妥善使用三顆不同之 CPU。
 
 \begin{figure}[b]
   \centering
@@ -24,27 +28,13 @@
 \tikzset{vertex/.style = {shape=circle,draw,minimum size=1.5em}}
 \tikzset{edge/.style = {->,> = latex'}}
 % vertices
-\node[vertex] (a) {};
-\node[vertex] (b) {};
-\node[vertex] (c) {};
+\node[vertex, minimum size=1.5em] (a) at (10,) {node 1};
+\node[vertex, minimum size=1.5em] (b) at (15,) {node 2};
+\node[vertex, minimum size=1.5em] (c) at (20,) {node 3};
 %edges
 \draw[edge] (a) to (b);
 \draw[edge] (b) to (c);
 
-\draw[edge] (a)  to[bend left] (a1);
-\draw[edge] (a1) to[bend left] (a);
-
-\draw[edge] (a1) to[bend left] (a2);
-\draw[edge] (a2) to[bend left] (a1);
-
-\path (a2) to node {\dots} (c);
-\node [shape=circle,minimum size=1.5em] (a3) at (4.5,0) {};
-\draw[edge] (a2) to[bend left] (a3);
-\draw[edge] (a3) to[bend left] (a2);
-
-\node [shape=circle,minimum size=1.5em] (c1) at (6.5,0) {};
-\draw[edge] (c) to[bend left] (c1);
-\draw[edge] (c1) to[bend left] (c);
 \end{tikzpicture}
 
   % [] 放的是顯示在 list of figure 的文字
@@ -53,10 +43,8 @@
   \label{fig:hardware_architecture}
 \end{figure}
 
-為了準確的分別 traffic generating 與 forwarding 的中央處理器(以下簡稱 CPU)使用率，避免單一 CPU 需要同時產生流量與處理流量，我們的測試方法將流量產生器(traffic generator)、核心網路、流量接收者 (traffic receiver) 分別部屬於不同的機器上，讓三者得以完全妥善使用三顆不同之 CPU。
-
 \section{用戶層效能分析}
-\label{sec:evaluation}
+\label{sec:up_evaluation}
 
 \begin{figure}[b]
   \centering
@@ -71,4 +59,4 @@
 \end{figure}
 
 \section{控制層效能分析}
-\label{sec:evaluation}
+\label{sec:cp_evaluation}
