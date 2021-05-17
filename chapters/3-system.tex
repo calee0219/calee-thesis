@@ -121,7 +121,53 @@
 
 儘管透過 C program 呼叫 Golang shared library 在實踐成本上遠低於使用 Golang 呼叫 C library，但我們希望在程式設計上可以提供更高的擴充性 (scalibility) 與更加一般化 (generalize)，且若可以設計成 函式庫 (library) 形式，會更加利於使用者使用且可以不僅限此專案使用，因此我們希望嘗試以可以直接使用之 Golang 函式庫方向開發。
 
-由於從 OpenNetVM API 上獲取的封包是直接傳回封包所在記憶體位置的指標，而封包爲連結層 (link layer) 之上的內容，因此我們決定開發成類似 Goalng 原生之 net 函式庫，透過 Golang 所提供的 interface 性質，直接取代掉 PFCP 底層之 \lstinline[language=Go]{net.UdpConn} interface，我們命名之 \lstinline[language=Go]{onvmNet.ONVMConn}~\cite{github.onvmNet} interface。
+由於從 OpenNetVM API 上獲取的封包是直接傳回封包所在記憶體位置的指標，而封包爲連結層 (link layer) 之上的內容，因此我們決定開發成類似 Goalng 原生之 net 函式庫，透過 Golang 所提供的 interface 性質，直接取代掉 PFCP 底層之 \lstinline[language=Go]{net.UdpConn} interface，我們命名之 \lstinline[language=Go]{onvmNet.ONVMConn} interface~\cite{github.onvmNet} (見圖~\ref{fig:smf_porting_arch})。
+
+\begin{figure}[htbp]
+  \centering
+  \subcaptionbox{
+    原生之 free5GC SMF 架構
+    \label{fig:kernel_smf_arch}
+  }{
+    \begin{tikzpicture}
+      \tikzset{
+        disc 1/.style={minimum width=15mm},
+        disc 2/.style={minimum width=25mm},
+        disc 3/.style={minimum width=35mm},
+        disc 4/.style={minimum width=45mm},
+      };
+      \tikzset{box/.style={minimum height=2em,draw=black,inner sep=0,thick,node distance=2em}}
+      \node[disc 1,draw,box] (d1) {SMF};
+      \node[disc 2,draw,box,below of=d1] (d2) {free5gc/pfcp};
+      \node[disc 3,draw,box,below of=d2] (d3) {net.UdpConn};
+      \node[disc 4,draw,box,below of=d3] (d4) {Linux Berkeley Socket};
+      \node[below of=d3,node distance=1em,opacity=0.6,fill=white,text opacity=1,text=blue] {\scriptsize System Call};
+    \end{tikzpicture}
+  }
+  \subcaptionbox{
+    OpenNetVM 移植後之 SMF 架構
+    \label{fig:onvm_smf_arch}
+  }{
+    \begin{tikzpicture}
+      \tikzset{
+        disc 1/.style={minimum width=15mm},
+        disc 2/.style={minimum width=25mm},
+        disc 3/.style={minimum width=35mm},
+        disc 4/.style={minimum width=45mm},
+      };
+      \tikzset{box/.style={minimum height=2em,draw=black,inner sep=0,thick,node distance=2em}}
+      \node[disc 1,draw,box] (d1) {SMF};
+      \node[disc 2,draw,box,below of=d1] (d2) {onvm-pfcp};
+      \node[disc 3,draw,box,below of=d2] (d3) {onvmNet.ONVMConn};
+      \node[disc 4,draw,box,below of=d3] (d4) {OpenNetVM};
+      \node[below of=d3,node distance=1em,opacity=0.6,fill=white,text opacity=1,text=blue] {\scriptsize cgo with ONVM API};
+    \end{tikzpicture}
+  }
+  % [] 放的是顯示在 list of figure 的文字
+  % {} 放的是顯示在圖下方的文字
+  \caption[SMF 相關性依賴]{{\footnotesize SMF 相關性依賴}}
+  \label{fig:smf_porting_arch}
+\end{figure}
 
 在設計此函式庫時有部分條件需要考慮，首先，由於 Golang 在透過 CGO 呼叫 C 函式時，有不可呼叫內部有訊號註冊 (signal handling) 的函式，其原因爲 golang 本身有對訊號作內部處理，因此如果透過外部語言另外註冊訊號，會影響 Golang 程序底層訊號處理，但由於 OpenNetVM 在初始化階段需要透過 OpenNetVM 的 API 對系統作訊號註冊，因此會出現問題。而我們參考了網路上的解決方法，將訊號註冊放置 Golang 的 \lstinline[language=Go]{init} 函式，\lstinline[language=Go]{init} 函式是 Golang 設計給予在 main 函式執行起來前，就預先執行的函式，類似 C 語言的 \lstinline[language=C]{__attribute__ ((constructor))}。
 
