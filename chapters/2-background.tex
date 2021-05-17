@@ -5,12 +5,40 @@
 \section{5G 核心網路簡介}
 \label{sec:5g_core_intro}
 
-\section{5G 核心網路用戶層介紹}
-\label{sec:5g_up_intro}
+\subsection{5G 核心網路用戶層介紹}
+\label{subsec:5g_up_intro}
 
 % 介紹 GTP, PFCP
 
-\section{5G 核心網路控制層介紹}
-\label{sec:5g_cp_intro}
+\subsection{5G 核心網路控制層介紹}
+\label{subsec:5g_cp_intro}
 
 % 介紹 SBI, NGAP, NAS, PFCP
+
+\subsection{現存 5G 核心網路專案}
+\label{subsec:5g_core_project}
+
+\section{OpenNetVM 平臺}
+\label{sec:OpenNetVM}
+
+\subsection{Data Plane Development Kit}
+\label{subsec:DPDK}
+
+
+\begin{figure}[htb]
+  \centering
+  % 圖片的高度與寬度, height 設為 ! 代表由寬度大小等比例縮放
+  \includegraphics[height=!,width=0.6\linewidth,keepaspectratio=true]%
+  % 圖片的位置
+  {figures/dpdk_vs_kernel}
+  % [] 放的是顯示在 list of figure 的文字
+  % {} 放的是顯示在圖下方的文字
+  \caption[封包處理比較：Linux 核心與 DPDK]{{\footnotesize 封包處理比較：Linux 核心與 DPDK \cite{dpdk}}}
+  \label{fig:dpdk_vs_kernel}
+\end{figure}
+
+\subsection{Shared Memory}
+\label{subsec:shared_memory}
+
+\section{現行方案的挑戰}
+\label{sec:challenage}
