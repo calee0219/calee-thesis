@@ -7,6 +7,22 @@
 
 %同時介紹 free5GC control plan 採用 Golang 開發，並且介紹 Golang
 
+free5GC 是一個現行的開源 5G 核心網路方案，在版本 v3.0.4 上原生支援 5G SA (stand-along) 架構，也就是不需要藉由 4G 網路作為中間層，包含核心網路與無線訊號接入端 (RAN, radio access network) 都可以並且必須是純 5G 之架構。而 free5GC 在 v3.0.4 上已經有實作 AMF、AUSF、NRF、NSSF、PCF、SMF、UDM、UDR、與 UPF (見圖~\ref{fig:free5gc_arch})，對於非 3GPP 接入 (non-3gpp access)，free5GC 亦有 N3IWF 的支援，是目前開源 5G 核心網路方案中，架構上最爲完善的軟體。由於其開源的性質與廣大的設群討論，基於 free5GC 進行修改開發無疑是最為方便有效之選擇。
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[height=!,width=1\linewidth,keepaspectratio=true]
+                    {figures/free5gc-stage-2-arch}
+  % [] 放的是顯示在 list of figure 的文字
+  % {} 放的是顯示在圖下方的文字
+  \caption[free5GC 架構]{{\footnotesize free5GC 架構~\cite{free5gc}}}
+  \label{fig:free5gc_arch}
+\end{figure}
+
+free5GC 源自於 NextEPC~\cite{nextepc}，一個 4G 開源核心網路，於版本 v1.0.0 時將 NextEPC 之 MME、S/P-GW 等運算、管理連線之 NF，改為 5G 之 AMF、SMF、與 UPF，並保留了 4G 的 HSS 與 PCRF 作認證之功能，此階段是對於 5G 架構的概念性驗證 (PoC, Proof of Concept)，並沒有完全按照 3GPP 的標準實作。並且由於 NextEPC 是使用 C 語言開發，在此版本下，free5GC 亦是使用 C 語言開發，並且大量繼承使用 NextEPC 之功能與函式。
+
+於版本 v2.0.0 時，free5GC 完全重構了核心網路，捨棄掉 NextEPC 的程式碼而改為重新開發一個基於 3GPP R15.3 的 5G 核心網路。由於考量到 Go 語言有許多適合撰寫網路程式的特性，諸如原生提供大量方便使用之標準函式庫 (standard library)、內建垃圾回收機制 (GC, garbage collection)、可快速引用第三方函式庫 (third party library) 等等，而選擇使用 Go 語言作來撰寫所有控制端 NF，唯獨 UPF 因為考量到效能以及未來可能需要與其他高效能函式庫間接的關係，而沿用 C 語言開發。
+
 \section{系統層 API: OpenNetVM 系統介紹}
 \label{sec:opennetvm_intro}
 
@@ -17,7 +33,6 @@
 \label{sec:smf_porting}
 
 % 5G 所有 interface
-
 雖然 5G 使用 SBI 架構整合了大部分的控制端界面，但還是保留了 NGAP 跟 PFCP 於 N2 及 N4 界面 (見圖~\ref{fig:5g_system_architecture})，其中 N2 是介於基地臺 (RAN) 與 AMF 之間的通訊，透過 NGAP 協定，類似於 4G 時代的 S1AP 協定，而 N4 則是 SMF 與 UPF 間的界面，沿用 4G R10 之後 CU 分離概念所使用的 PFCP 協定。在這主要的三個界面中，SBI 是基於 HTTP2，傳輸層 (L4, transport layer) 是使用的是 TCP，NGAP 的傳輸層使用 SCTP，而 PFCP 的傳輸層使用的是 UDP。
 
 \begin{figure}[ht]
@@ -42,9 +57,12 @@
   \label{fig:5g_system_architecture}
 \end{figure}
 
+% AMF, SMF, UPF 互動內容
+
+% free5GC 原來之 SMF 架構，PFCP 使用 TLV，SBI 使用 HTTP2, OpenAPI
+
 % SMF 所使用的 interface，並且決定只作 PFCP (N4 interface)
 % 可以的話舉證 Session mgmt 重要於 mobility 與 regisration/deregistration
-
 為了加速控制端的控制訊號 (control signal) 可以更快的新增、修改、刪除用戶端的會話 (session)，我們希望可以透過加速 AMF、SMF、與 UPF 這三個於 PDU Session 流程中最重要的三個 Network Function 之間的通訊速度，降低其三者間的通訊延遲 (latency)，得以在 5G 核心網路進行大量會話的新增、修改、與刪除中，得到最好的效能。
 
 在 AMF、SMF、與 UPF 中，SMF 是負責 Session 管理的 Network Function，即是 Session 管理最重要的部件，因此我們希望優先著重於其控制信號的效能最佳化。而在 SMF 的界面中，又以 N4 界面用以對 UPF 下達 Session 管理的界面最為重要，因此我們決定於 N4 界面上，透過 OpenNetVM 物理層傳輸效能的優勢取代傳統 Berkeley Socket，藉以提高 N4 介面的傳輸效能，降低控制訊號的延遲。
@@ -179,7 +197,43 @@
 
 另外在設計封包收取 (ReceiveFrom) 時，需要判斷此封包屬於那一個連線 (connection) 的，因此我們設計了 \lstinline{channelMap}，每個連線在聽到 (listen) 連線時會開出一個對應的 channel 並放入 channelMap，當處理者 (handler) 收到 OpenNetVM 給予的封包後，透過 HashMap 的方式以 O(1) 的速度搜尋出相對應的 channel，再將封包送入 channel 得以送到正確的連線中。
 
-設計完 onvmNet 函式庫後，之需將 free5GC 內部 PFCP 函式庫內有呼叫到 \lstinline[language=Go]{net.UDPConn} 的部分改成呼叫 \lstinline[language=Go]{onvmNet.ONVMConn}。另外由於 free5GC 是透過 go module 來維護套件，因此還需跟新 go.mod 之內容。而若有其他 Golang 專案想要嘗試使用 OpenNetVM 平臺，僅需作相同的取代，即可快速移植。
+% Channel dispacher 設計圖
+
+設計完 onvmNet 函式庫後，之需將 free5GC 內部 PFCP 函式庫內有呼叫到 \lstinline[language=Go]{net.UDPConn} 的部分改成呼叫 \lstinline[language=Go]{onvmNet.ONVMConn}。另外由於 free5GC 是透過 go module 來維護套件，因此還需跟新 go.mod 之內容。而若有其他 Golang 專案想要嘗試使用 OpenNetVM 平臺，僅需作相同的取代，即可快速移植 (見圖~\ref{fig:smf_arch})。
+
+% ONVM SMF 總架構圖
+\begin{comment}
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}
+    \draw[step=1em,gray,very thin] (-6,-6) grid (6,6);
+    \filldraw[black] (0,0) circle (2pt) node[anchor=west] {};
+
+    \tikzset{
+      component/.style={rectangle,draw=blue!60,fill=blue!5,thin,minimum width=7em},
+      endpoint/.style={rectangle,draw=red!60,fill=red!5,thin,minimum width=15em},
+      nf/.style={rectangle,draw=green!60,fill=green!5,thin},
+    };
+    \node[nf] (upf) {UPF};
+    \node[endpoint] (pfcp_ep) [above of=upf] {PFCP EndPoint};
+    \node[component] (pfcp_de) [above of=pfcp_ep] {PFCP Decoder};
+    \node[component] (pfcp_en) [above of=pfcp_ep,right of=pfcp_ep,xshift=2.5cm] {PFCP Encoder};
+    \node[component] (pfcp_b) [above of=pfcp_en] {PFCP Builder};
+    \node[component] (pfcp_han) [above of=pfcp_b,xshift=2.5cm] {PFCP Handler};
+    \node[component] (pfcp_dis) [right of=pfcp_han,xshift=-2.5cm] {PFCP Dispatcher};
+  \end{tikzpicture}
+\end{figure}
+\end{comment}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[height=!,width=1\linewidth,keepaspectratio=true]
+                  {figures/smf_arch}
+  % [] 放的是顯示在 list of figure 的文字
+  % {} 放的是顯示在圖下方的文字
+  \caption[SMF 架構]{{\footnotesize SMF 架構}}
+  \label{fig:smf_arch}
+\end{figure}
 
 \section{UPF 移植細節}
 \label{sec:upf_porting}
