@@ -58,6 +58,30 @@ free5GC 源自於 NextEPC~\cite{nextepc}，一個 4G 開源核心網路，於版
 \end{figure}
 
 % AMF, SMF, UPF 互動內容
+由於我們希望專注於改善行動網路最常見的連線行為， UE 連線上網的效能，參與這個情境需要幾乎所有 NF 的參與，但其中有三個 NF 扮演著最重要的角色，AMF、SMF、和 UPF，如同章節~\ref{sec:5g_core_intro}所描述的，AMF 主要負責處理接入 (access) 與移動 (mobility)，SMF 負責連線的管理 (session management)，而 UPF 則是使用者端 (user plane) 封包最重要且唯一的轉送處理單元。
+
+連線過程主要可以分為兩個階段：註冊 (register) 與連線建立 (Session Establishment)。連線過程會做諸如確認 UE 位置、驗證使用者資料、確認使用者能力、確認一些上下文、或給予 ID 等，主要由 AMF 參與並且向其他 NF (ex. UDM, AUSF) 詢問一些資訊。而連線建立主要會幫助 UE 建立正確的連線路徑、設定 QoS 參數、設定緩衝參數等等，而在這個階段裡，除了 AMF，SMF 與 UPF 也會在這個階段內參與運算，此時 SMF 負責管理與建立連線路徑，向核心網路端他會通知 UPF 建立路徑，而向 RAN 端他會透過 AMF 的中繼 (relay)，向 RAN 發出指令建立路徑或詢問資訊。
+
+\begin{figure}[htbp]
+  \centering
+  \subcaptionbox[b]{
+    註冊流程
+    \label{fig:reg_proc}
+  }{
+    \includegraphics[height=!,width=0.4\linewidth,keepaspectratio=true]
+                    {figures/23_502_4_2_2_2_2-1_reg_proc}
+  }
+  \subcaptionbox[b]{
+    連線建立流程
+    \label{fig:sess_establish}
+  }{
+    \includegraphics[height=!,width=0.47\linewidth,keepaspectratio=true]
+                    {figures/23_502_4_3_2_2_1-1_sess_establish}
+  }
+  \caption[5G 流程]{{\footnotesize 5G 流程~\cite{3gpp.23.502}}}
+  \label{fig:5g_procedure}
+\end{figure}
+
 
 % free5GC 原來之 SMF 架構，PFCP 使用 TLV，SBI 使用 HTTP2, OpenAPI
 
