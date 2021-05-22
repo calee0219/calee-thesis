@@ -23,6 +23,28 @@ free5GC 源自於 NextEPC~\cite{nextepc}，一個 4G 開源核心網路，於版
 
 於版本 v2.0.0 時，free5GC 完全重構了核心網路，捨棄掉 NextEPC 的程式碼而改為重新開發一個基於 3GPP R15.3 的 5G 核心網路。由於考量到 Go 語言有許多適合撰寫網路程式的特性，諸如原生提供大量方便使用之標準函式庫 (standard library)、內建垃圾回收機制 (GC, garbage collection)、可快速引用第三方函式庫 (third party library) 等等，而選擇使用 Go 語言作來撰寫所有控制端 NF，唯獨 UPF 因為考量到效能以及未來可能需要與其他高效能函式庫間接的關係，而沿用 C 語言開發。
 
+% free5GC 原來之 SMF 架構，PFCP 使用 TLV，SBI 使用 HTTP2, OpenAPI
+經過了對 free5GC 的程式碼的研讀後，我們瞭解 free5GC 大致上把控制端的 NF 大致規劃成三種部件：SBI、中心處理部件、與其他。以 SMF 為例 (見圖~\ref{fig:free5gc_smf_arch})，分為 SBI、Flow Procedure、與 PFCP。
+SBI~\cite{3gpp.29.500} 全名為 service base interface
+，是 3GPP 於 R15 (5GS) 設計出來做爲控制端溝通的協定，主要基於 HTTP2、RESTful API 設計，分為 Consumer 與 Producer，由 Consumer 向 Producer 要求 (request) 資訊。相較於 HTTP，HTTP2 提供了更少的網路延遲，而使用 RESTful API 則可讓 API 有更加的結構，並且 3GPP 直接採用 OpenAPI 格式來定義 RESTful 的格式，得以在設計好 OpenAPI 文件後，可讓人類快速讀懂，也可以透過 OpenAPI 工具直接產生出相對應的程式碼。
+PFCP~\cite{3gpp.29.244} 是 SMF 獨有的協議，不存在於除 SMF 與 UPF 外的其他 NF，主要是用來讓 SMF 與 UPF 溝通，並且對 UPF 下達相對應的封包轉發指令，於 3GPP 在 R14 時為了設計 4G EPC 中 CUPS (Control and User Plane Separation, 控制與使用者端分離) 而採用的。PFCP 建立於 UDP 之上並採用 TLV (type, length, value) 的格式設計，封包內容裡每個 IE (information element) 都會有三個主要成分：2 byte 的 type 用來描述 IE 種類、2 byte 的 length 用來描述 IE value 的長度、以及 length byte 的 value 用來敘述 IE 的內容。而 TLV 亦可巢狀使用，及一個 TLV 的 value 內可以包含其他一個或多個 TLV 使用。透過 TLV 的設計，PFCP 可以將訊息有效的壓縮長度。
+而 flow procedure 則是負責整個 SMF 的邏輯運算，經過 PFCP 或 SBI 解碼過的內容會被統一傳送給 Flow Procedure 並且由 Flow procedure 來決定相對要做的事情。
+
+其他控制端 NF 架構上大致類似，若是只有 SBI 界面的 NF 像是 UDM、PCF 等等，會捨棄其他部件，而像是 AMF 有 SBI 與 NGAP，則會用 NGAP 取代其他部件。
+
+% free5GC UPF 架構
+至於 free5GC 使用者端的 NF UPF 則是主要分成三個部分：N4 Handler、UPDK、與 gtp5g~\cite{gtp5g} (見圖~\ref{fig:free5gc_upf_arch})，N4 Handler 主要是負責處理從 SMF 送下來的 PFCP 控制訊號，他會直接透過 Linux UDP Socket 獲取 N4 訊號，解碼 PFCP 後翻譯成 UPF 看得懂的格式，比較有趣的是，因為 PFCP 是遵守 TLV 格式的，因此 free5GC 在撰寫這部分時，是直接解析 3GPP 文件後透過自己撰寫的程式碼生成器 (code generator) 來產生 encoder 與 decoder。UPDK 主要是負責處理使用者端訊息的邏輯，向上他會接收到 N4 Handler 所下的 PDR (Packet Detection Rules) / FAR (Forwarding Action Rules) 指令儲存起來，並在收到相對應的 GTP (GPRS Tunnelling Protocol) 封包後協助 gtp5g kernel module 進行相對應的封包處理。而 gtp5g 則是負責協助處理使用者端界面 N3、N6、與 N9 的 kernel module，在 N6 界面上，會透過 netlink 創造一個虛擬裝置 (virtual device) 來接收從 DN 來的封包，N3 與 N9 則是直接從 netlink module 拿到 routing 進來的封包。
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[height=!,width=1\linewidth,keepaspectratio=true]
+                  {figures/free5gc_smf_arch}
+  % [] 放的是顯示在 list of figure 的文字
+  % {} 放的是顯示在圖下方的文字
+  \caption[free5GC 原生之 SMF 架構]{{\footnotesize free5GC 原生之 SMF 架構}}
+  \label{fig:free5gc_smf_arch}
+\end{figure}
+
 \section{系統層 API: OpenNetVM 系統介紹}
 \label{sec:opennetvm_intro}
 
@@ -82,24 +104,6 @@ free5GC 源自於 NextEPC~\cite{nextepc}，一個 4G 開源核心網路，於版
   \label{fig:5g_procedure}
 \end{figure}
 
-
-% free5GC 原來之 SMF 架構，PFCP 使用 TLV，SBI 使用 HTTP2, OpenAPI
-經過了對 free5GC 的程式碼的研讀後，我們瞭解 free5GC 大致上把控制端的 NF 大致規劃成三種部件：SBI、中心處理部件、與其他。以 SMF 為例~\ref{fig:free5gc_smf_arch}，分為 SBI、Flow Procedure、與 PFCP。
-SBI 全名為 service base interface
-，是 3GPP 於 R15 (5GS) 設計出來做爲控制端溝通的協定，主要基於 HTTP2、RESTful API 設計，分為 Consumer 與 Producer，由 Consumer 向 Producer 要求 (request) 資訊。相較於 HTTP，HTTP2 提供了更少的網路延遲，而使用 RESTful API 則可讓 API 有更加的結構，並且 3GPP 直接採用 OpenAPI 格式來定義 RESTful 的格式，得以在設計好 OpenAPI 文件後，可讓人類快速讀懂，也可以透過 OpenAPI 工具直接產生出相對應的程式碼。
-PFCP~\cite{3gpp.29.244} 是 SMF 獨有的協議，不存在於除 SMF 與 UPF 外的其他 NF，主要是用來讓 SMF 與 UPF 溝通，並且對 UPF 下達相對應的封包轉發指令，於 3GPP 在 R14 時為了設計 4G EPC 中 CUPS (Control and User Plane Separation, 控制與使用者端分離) 而採用的。PFCP 建立於 UDP 之上並採用 TLV (type, length, value) 的格式設計，封包內容裡每個 IE (information element) 都會有三個主要成分：2 byte 的 type 用來描述 IE 種類、2 byte 的 length 用來描述 IE value 的長度、以及 length byte 的 value 用來敘述 IE 的內容。而 TLV 亦可巢狀使用，及一個 TLV 的 value 內可以包含其他一個或多個 TLV 使用。透過 TLV 的設計，PFCP 可以將訊息有效的壓縮長度。
-而 flow procedure 則是負責整個 SMF 的邏輯運算，經過 PFCP 或 SBI 解碼過的內容會被統一傳送給 Flow Procedure 並且由 Flow procedure 來決定相對要做的事情。
-其他控制端 NF 架構上大致類似，若是只有 SBI 界面的 NF 像是 UDM、PCF 等等，會捨棄其他部件，而像是 AMF 有 SBI 與 NGAP，則會用 NGAP 取代其他部件。
-
-\begin{figure}[htbp]
-  \centering
-  \includegraphics[height=!,width=1\linewidth,keepaspectratio=true]
-                  {figures/free5gc_smf_arch}
-  % [] 放的是顯示在 list of figure 的文字
-  % {} 放的是顯示在圖下方的文字
-  \caption[free5GC 原生之 SMF 架構]{{\footnotesize free5GC 原生之 SMF 架構}}
-  \label{fig:free5gc_smf_arch}
-\end{figure}
 
 % SMF 所使用的 interface，並且決定只作 PFCP (N4 interface)
 % 可以的話舉證 Session mgmt 重要於 mobility 與 regisration/deregistration
