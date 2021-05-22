@@ -1,4 +1,3 @@
-% !TEX TS-program = XeLaTeX
 \chapter{背景}
 \label{chapter:background}
 
@@ -25,18 +24,27 @@
 \subsection{5G 常見流程}
 \label{subsec:5g_procedure}
 
-% UE Registration
-Registration是UE開啟後第一個所進行的流程，這個流程使用戶設備得以使用核心網路所帶來的服務，並且註冊並不僅僅限於用戶設備連接至核心網路的那一刻，在用戶與核心網路的連接期間，依舊會根據不同的場景執行Registration，主要分為Initial Registration，在UE開啟電源後嘗試連接至核心網路時所使用；
-Periodic Registration，當UE處於CM-IDLE的狀態時，定期與核心網路回報自身存在；Mobility Registration，當UE離開Registration Area後到達新的Tracking Area後，更新UE狀態時所使用；Emergency Registration，當UE僅試圖使用核網所提供的緊急服務時所使用。由此可知，只要UE試圖與核心網路連結，必定會執行該流程，可見Registration在核心網路中的重要性。
+在核心網路中有定義了大量不同的流程 (procedure~\cite{3gpp.23.502}) 來適應不同的情境，而其中我們認為有主要四個流程是在核心網路中最重要也是最長觸發的，對這四個流程的觀察可以讓我們對核心網路可以有更快速的瞭解，同時因為其重要性，也適合作為實驗評估時的基準。
 
-% PDU Session Establishment
-        5G核心網路所提供給UE的其中一個重要服務即是與資料網路（Data Network）的連接，資料網路並不僅限於網際網路（Internet）也包含了IP多媒體子系統（IMS）亦或是私有網路。UE為了連線至資料網路，將會發起PDU Session的建立請求，流程完成後，會建立起UE和資料網路之間的用戶平面，才能進行資料交換。
-        
-% UE Handover
-      換手（Handover）為核心網路支援使用者移動性質的關鍵，同時確保服務的連續性。UE在行動網路供應商提供之服務範圍中移動時，由於從正在提供服務的基地台所接受訊號變差，UE為了避免服務品質低落，必須從原先提供服務之基地台切換至其他訊號較強之基地台從而維持相同服務品質，同時必須讓使用者不因切換時所造成的中斷延遲時間而感受到使用體驗上的低落。因此換手時間將直接影響了使用者體驗，並且隨著UE於長距離下的高速移動，將會大量觸發換手機制，此情形下，確保換手時的低延遲將顯得更為重要。
-      
-% Paging
-Paging為核心網路用來尋找IDLE中的UE並且觸發訊號連接的過程，其中最常出現的場景為UE進入IDLE後，資料網路要傳送給UE的下行封包抵達核心網路，透過Paging尋找UE接著觸發Service Request建立下行PDU Session，在下行PDU Session建立前，所有的下行封包皆由UPF進行暫存，等到建立完成後一併轉發，因此低延遲表示能夠讓UE即時的接收到下行封包，也降低了UPF儲存大量下行封包下的負擔。
+\begin{itemize}
+\item \textbf{Registration:}
+    Registration 是 UE 開啟後第一個所進行的流程，UE 需要透過註冊流程才能跟核心網路索取認證 (authorized)、服務 (services)、移動追蹤 (mobility tracking)、與可達性 (reachability) 等功能。
+    並且註冊並不僅僅限於用戶設備連接至核心網路的那一刻，在用戶與核心網路的連接期間，依舊會根據不同的場景執行 Registration，主要分為 Initial Registration，在UE開啟電源後嘗試連接至核心網路時所使用；Periodic Registration，當 UE 處於 CM-IDLE 的狀態時，定期與核心網路回報自身存在；Mobility Registration，當 UE 離開 Registration Area 後到達新的 Tracking Area 後，更新UE狀態時所使用；Emergency Registration，當 UE 僅試圖使用核網所提供的緊急服務時所使用。
+    由此可知，只要 UE 試圖與核心網路連結，必定會執行該流程，可見 Registration 在核心網路中的重要性。
+
+\item \textbf{Session Management:}
+    5G 核心網路所提供給 UE 的其中一個重要服務即是與資料網路 (Data Network) 的連接，資料網路並不僅限於網際網路 (Internet) 也包含了 IP 多媒體子系統 (IMS) 亦或是私有網路。UE 為了連線至資料網路，將會發起 PDU Session 的建立請求，流程完成後，會建立起UE和資料網路之間的用戶平面，才能進行資料交換。同時在 UE 進行移動時，也可能因為更換 RAN 或甚至 UPF 而需要經常性的作連線的修改 (session modification)。
+    如果沒有進行這個流程，UE 將無法連線至網路以獲取所需的資源。
+
+\item \textbf{Handover:}
+    換手 (Handover) 為核心網路支援使用者移動性質的關鍵，同時確保服務的連續性。UE 在行動網路供應商提供之服務範圍中移動時，由於從正在提供服務的基地台 (base station, RAN) 所接受訊號變差，UE 為了避免服務品質低落，必須從原先提供服務之基地台切換至其他訊號較強之基地台從而維持相同服務品質，同時必須讓使用者不因切換時所造成的中斷延遲時間而感受到使用體驗上的低落。
+    因此換手時間將直接影響了使用者體驗，並且隨著 UE 於長距離下的高速移動，將會大量觸發換手機制，此情形下，確保換手時的低延遲將顯得更為重要。
+
+\item \textbf{Paging:}
+    Paging 為核心網路用來尋找 IDLE 狀態中的 UE 並且觸發訊號連接的過程，由於移動設備需要考慮電源管理 (power management)，在不需要使用到服務時移動設備會進入 IDEL 狀態來關閉連線以減少電源消耗。
+    而在 UE 進入 IDLE 狀態後，若資料網路需要傳送給 UE 的下行封包抵達核心網路，就需要透過 Paging 尋找 UE 接著觸發 Service Request 建立下行 PDU Session，在下行 PDU Session 建立前，所有的下行封包皆由 UPF 進行暫存，等到建立完成後一併轉發。
+    因此低延遲的 paging 流程表示能夠讓 UE 即時的接收到下行封包，也降低了 UPF 儲存大量下行封包下的負擔。同時若沒有 paging 流程，UE 將會需要時時保持與核心網路的連線而可能導致大量的電源消耗。
+\end{itemize}
 
 \subsection{現存 5G 核心網路專案}
 \label{subsec:5g_core_project}

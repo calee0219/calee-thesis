@@ -11,7 +11,36 @@
 %\usepackage{graphviz}     % graphviz to draw graph
 \usepackage{tikz}         % tikz to draw graph
 \usetikzlibrary{arrows,calc,shapes,chains}
+\usepackage{enumitem}
+\setlist{topsep=1pt,itemsep=1pt,parsep=1pt,itemindent=0pt,leftmargin=0.13in}
+\usepackage{outlines}
+\usepackage{soul}         % Highlite capability
+\soulregister\cite7
+\soulregister\ref7
+\usepackage{color}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
 \usepackage{listings}
+\lstset{frame=tb,
+	language=C,
+	aboveskip=3mm,
+	belowskip=3mm,
+	showstringspaces=false,
+	columns=flexible,
+	basicstyle={\small\ttfamily},
+	numbers=none,
+	numberstyle=\tiny\color{gray},
+	keywordstyle=\color{blue},
+	commentstyle=\color{dkgreen},
+	stringstyle=\color{mauve},
+	breaklines=true,
+	breakatwhitespace=true,
+	tabsize=3
+}
+
+\renewcommand\_{\textunderscore\allowbreak}
+\newcommand{\cnote}[1]{{\color{red}[Calee: #1]}}
 
 %-------------------------------------------------------------------------------
 % Configuration
