@@ -86,7 +86,7 @@ free5GC 源自於 NextEPC~\cite{nextepc}，一個 4G 開源核心網路，於版
 % free5GC 原來之 SMF 架構，PFCP 使用 TLV，SBI 使用 HTTP2, OpenAPI
 經過了對 free5GC 的程式碼的研讀後，我們瞭解 free5GC 大致上把控制端的 NF 大致規劃成三種部件：SBI、中心處理部件、與其他。以 SMF 為例~\ref{fig:free5gc_smf_arch}，分為 SBI、Flow Procedure、與 PFCP。
 SBI 全名為 service base interface
-，是核心網路於 R15 (5GS) 設計出來做爲控制端溝通的協定，主要基於 HTTP2、RESTful API 設計，分為 Consumer 與 Producer，由 Consumer 向 Producer 要求 (request) 資訊。相較於 HTTP，HTTP2 提供了更少的網路延遲，而使用 RESTful API 則可讓 API 有更加的結構，並且 3GPP 直接採用 OpenAPI 格式來定義 RESTful 的格式，得以在設計好 OpenAPI 文件後，可讓人類快速讀懂，也可以透過 OpenAPI 工具直接產生出相對應的程式碼。
+，是 3GPP 於 R15 (5GS) 設計出來做爲控制端溝通的協定，主要基於 HTTP2、RESTful API 設計，分為 Consumer 與 Producer，由 Consumer 向 Producer 要求 (request) 資訊。相較於 HTTP，HTTP2 提供了更少的網路延遲，而使用 RESTful API 則可讓 API 有更加的結構，並且 3GPP 直接採用 OpenAPI 格式來定義 RESTful 的格式，得以在設計好 OpenAPI 文件後，可讓人類快速讀懂，也可以透過 OpenAPI 工具直接產生出相對應的程式碼。
 PFCP~\cite{3gpp.29.244} 是 SMF 獨有的協議，不存在於除 SMF 與 UPF 外的其他 NF，主要是用來讓 SMF 與 UPF 溝通，並且對 UPF 下達相對應的封包轉發指令，於 3GPP 在 R14 時為了設計 4G EPC 中 CUPS (Control and User Plane Separation, 控制與使用者端分離) 而採用的。PFCP 建立於 UDP 之上並採用 TLV (type, length, value) 的格式設計，封包內容裡每個 IE (information element) 都會有三個主要成分：2 byte 的 type 用來描述 IE 種類、2 byte 的 length 用來描述 IE value 的長度、以及 length byte 的 value 用來敘述 IE 的內容。而 TLV 亦可巢狀使用，及一個 TLV 的 value 內可以包含其他一個或多個 TLV 使用。透過 TLV 的設計，PFCP 可以將訊息有效的壓縮長度。
 而 flow procedure 則是負責整個 SMF 的邏輯運算，經過 PFCP 或 SBI 解碼過的內容會被統一傳送給 Flow Procedure 並且由 Flow procedure 來決定相對要做的事情。
 其他控制端 NF 架構上大致類似，若是只有 SBI 界面的 NF 像是 UDM、PCF 等等，會捨棄其他部件，而像是 AMF 有 SBI 與 NGAP，則會用 NGAP 取代其他部件。
@@ -109,7 +109,9 @@ PFCP~\cite{3gpp.29.244} 是 SMF 獨有的協議，不存在於除 SMF 與 UPF �
 
 % 移植理由, free5GC 目前的 downside (weekness)
 
-原生的 free5GC 控制端是建構在 Linux 的 Berkeley Socket 上，先將 L4 層以上的負載內容 (payload) 封裝後，再透過呼叫 Berkeley Socket API，來達成封包傳送的功能。但由於 Berkeley Socket 屬於 user space library API，並且在傳送過程中，至少會經過兩次記憶體複製 (memory copy) (會先複製到 per process 的 kernel space memory，再複製到 network device 的 newtowrk queue) (見圖~\ref{fig:kernel_packet_processing_arch})，相對於後來出現的技術諸如 DPDK 或 XDP，實屬效能不彰。另外，即便是將 Network Function 部屬於同一機器上，由於 Berkeley Socket 屬於 RPC，傳送路徑必定會經過 Network Device，無法自動判定為 IPC 而使用更高效率的傳輸方式。基於以上理由，我們希望透過 OpenNetVM 的性質，同時可以於 RPC 下使用 DPDK 功能，與 IPC 使用 shared memory 功能，實現完全零記憶體複製 (zero copy)，以及可於同一主機下使用 IPC 來達到更佳的傳輸效率。除了記憶體複製的問題之外，由於透過 system call 到 kernel 的設計，也會遇到所有 system call 會遇到的問題，像是會有至少兩種中斷 (interrupt)，一個是在呼叫 system call 的中斷，另一個則是因為網卡與記憶體是透過 DMA (direct memory access) 的關係，會在 DMA 機制上需要在把封包搬進記憶體後由網卡打入中斷來呼叫中央處理器進行下一步處理。同時 kernel call 也會因為需要上下文切換 (context switch) 到中斷上下文 (interrupt context) 或甚至是遇到程序排程 (process scheduling) 的上下文切換而消耗大量運算資源與效能。
+原生的 free5GC 控制端界面是建構在 Linux 的 Berkeley Socket 上，先將 L4 層以上的負載內容 (payload) 封裝後，再透過呼叫 Berkeley Socket API，來達成封包傳送的功能。但由於 Berkeley Socket 屬於 user space library API，並且在傳送過程中，至少會經過兩次記憶體複製 (memory copy) (會先複製到 per process 的 kernel space memory，再複製到 network device 的 newtowrk queue) (見圖~\ref{fig:kernel_packet_processing_arch})，相對於後來出現的技術諸如 DPDK 或 XDP，實屬效能不彰。另外，即便是將 Network Function 部屬於同一機器上，由於 Berkeley Socket 屬於 RPC，傳送路徑必定會經過 Network Device，無法自動判定為 IPC 而使用更高效率的傳輸方式。基於以上理由，我們希望透過 OpenNetVM 的性質，同時可以於 RPC 下使用 DPDK 功能，與 IPC 使用 shared memory 功能，實現完全零記憶體複製 (zero copy)，以及可於同一主機下使用 IPC 來達到更佳的傳輸效率。除了記憶體複製的問題之外，由於透過 system call 到 kernel 的設計，也會遇到所有 system call 會遇到的問題，像是會有至少兩種中斷 (interrupt)，一個是在呼叫 system call 的中斷，另一個則是因為網卡與記憶體是透過 DMA (direct memory access) 的關係，會在 DMA 機制上需要在把封包搬進記憶體後由網卡打入中斷來呼叫中央處理器進行下一步處理。同時 kernel call 也會因為需要上下文切換 (context switch) 到中斷上下文 (interrupt context) 或甚至是遇到程序排程 (process scheduling) 的上下文切換而消耗大量運算資源與效能。
+
+不管是控制端界面上的 NGAP、SBI、或 PFCP 都是建立在 Berkely Socket 上，而如章節~\ref{sec:challenge}所述，我們認為 5G 核心網路的 NF 因為網路功能虛擬化 (NFV)，因此可以放置於同一主機上。除了 NGAP 是 N2 介面的協定，即基地臺與核心網路的連結，因為基地臺並未虛擬化而是需要佈署在邊緣端，因此我們認爲將包含 SBI 與 PFCP 的協定若可以用更高效率的共享記憶體設計取代 Berkeley Socket，將能大幅提高核心網路控制端的效能。更者，由於 SBI 是建立於 TCP 協定之上，還會遇到諸如 TCP 三方交握或流量控制 (flow control)、擁塞控制 (congestion control) 等機制影響效能，移植至 shared memory 應該能大幅提升效能。
 
 \begin{figure}[htbp]
   \centering
@@ -173,6 +175,8 @@ PFCP~\cite{3gpp.29.244} 是 SMF 獨有的協議，不存在於除 SMF 與 UPF �
   \caption[核心封包處理架構]{{\footnotesize 核心封包處理架構}}
   \label{fig:kernel_packet_processing_arch}
 \end{figure}
+
+% SMF 的改進
 
 % 開發選擇
 在 SMF 移植的設計上，由於 OpenNetVM 所提供的是 C 語言的 API，而 free5GC 的 SMF 所使用的是 Golang 語言開發，因此需要考慮到如何跨語言移植。在設計之初有考慮是否需要透過 IPC 溝通，另外啟動一個 relay 將 SMF 的訊息 (message) 先透過 IPC 傳送到 relay process，再由 relay process 呼叫 OpenNetVM API。但由於發現 Golang 本身有提供 CGO 的功能，透過指定語法可以直接呼叫 C 語言 API，因此我們決定以此方法，減少 IPC 溝通的效能損耗。CGO 提供 C 呼叫 Go 語言函式或是 Go 呼叫 C 語言函式，若是以 C 呼叫 Golang，需要先將 Go 函式庫編譯成 share object library (.so 或 .dll 檔)，之後再讓 C 語言透過 share object 的方式呼叫，呼叫過程中由於已經編譯成 object file 並使用 dynimic linking 的方式，是由程式跑起來後 loader 來處理，因此對 caller (C 語言程式) 幾乎沒有任何限制。反之如果是 Golang 呼叫 C 語言函式庫，則會有較多限制，例如 callee 部可以有信號 (signal) 呼叫 (基於 golang 本身訊號覆蓋(signal mask)機制)、部分型別需要做強型別轉換、需要透過 cgo flag 讓編譯器或連結器得到相對 library 絕對位置等等。
