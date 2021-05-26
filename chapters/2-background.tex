@@ -49,8 +49,9 @@
 \subsection{現存 5G 核心網路專案}
 \label{subsec:5g_core_project}
 
-\section{OpenNetVM 平臺}
-\label{sec:OpenNetVM}
+\cnote{這邊放 ONVM 了話又會跟 system 那邊重疊，需要找一個不突兀的方法把 dpdk 跟 shared memory 代出來}
+%\section{OpenNetVM 平臺}
+%\label{sec:OpenNetVM}
 
 % 其他類似平臺
 % 直接用 dpdk, nff-go
@@ -76,3 +77,5 @@
 
 \section{現行方案的挑戰}
 \label{sec:challenge}
+
+% 強調 core network 因為 NFV 化，所以不再依賴硬體而可以部屬於同一 host，是否保持用 RPC 溝通就是可以重新審視的問題
