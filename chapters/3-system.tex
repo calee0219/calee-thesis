@@ -7,16 +7,15 @@
 
 % 同時介紹 free5GC control plan 採用 Golang 開發，並且介紹 Golang
 
-free5GC 是一個現行的開源 5G 核心網路方案，在版本 v3.0.4 上原生支援 5G SA (Standalone) 架構，也就是不需要藉由 4G 網路作為中間層，包含核心網路與無線訊號接入端 (RAN, radio access network) 都可以並且必須是純 5G 之架構。而 free5GC 在 v3.0.4 上已經有實作 AMF、AUSF、NRF、NSSF、PCF、SMF、UDM、UDR、與 UPF (見圖~\ref{fig:free5gc_arch})，對於非 3GPP 接入 (non-3gpp access)，free5GC 亦有 N3IWF 的支援，是目前開源 5G 核心網路方案中，架構上最爲完善的軟體。由於其開源的性質與廣大的設群討論，基於 free5GC 進行修改開發無疑是最為方便有效之選擇。
+free5GC 是一個現行的開源 5G 核心網路方案，在版本 v3.0.4 上原生支援 5G SA (Standalone) 架構，也就是不需要藉由 4G 網路作為中間層，包含核心網路與無線訊號接入端 (RAN, radio access network) 都可以並且必須是純 5G 之架構。而 free5GC 在 v3.0.4 上已經有實作 AMF、AUSF、NRF、NSSF、PCF、SMF、UDM、UDR、與 UPF (見圖~\ref{fig:free5gc_arch})，對於非 3GPP 接入 (non-3gpp access)，free5GC 亦有 N3IWF 的支援，是目前開源 5G 核心網路方案中，架構上最為完善的軟體。由於其開源的性質與廣大的設群討論，基於 free5GC 進行修改開發無疑是最為方便有效之選擇。
 
 \begin{figure}[htbp]
-  \centering
-  \includegraphics[height=!,width=1\linewidth,keepaspectratio=true]
-                    {figures/free5gc-stage-2-arch}
-  % [] 放的是顯示在 list of figure 的文字
-  % {} 放的是顯示在圖下方的文字
-  \caption[free5GC 架構]{{\footnotesize free5GC 架構~\cite{free5gc}}}
-  \label{fig:free5gc_arch}
+    \centering
+    \includegraphics[height=!,width=1\linewidth,keepaspectratio=true]{figures/free5gc-stage-2-arch}
+    % [] 放的是顯示在 list of figure 的文字
+    % {} 放的是顯示在圖下方的文字
+    \caption[free5GC 架構]{{\footnotesize free5GC 架構~\cite{free5gc}}}
+    \label{fig:free5gc_arch}
 \end{figure}
 
 free5GC 源自於 NextEPC~\cite{nextepc}，一個 4G 開源核心網路，於版本 v1.0.0 時將 NextEPC 之 MME、S/P-GW 等運算、管理連線之 NF，改為 5G 之 AMF、SMF、與 UPF，並保留了 4G 的 HSS 與 PCRF 作認證之功能，此階段是對於 5G 架構的概念性驗證 (PoC, Proof of Concept)，並沒有完全按照 3GPP 的標準實作。並且由於 NextEPC 是使用 C 語言開發，在此版本下，free5GC 亦是使用 C 語言開發，並且大量繼承使用 NextEPC 之功能與函式。
@@ -26,7 +25,7 @@ free5GC 源自於 NextEPC~\cite{nextepc}，一個 4G 開源核心網路，於版
 % free5GC 原來之 SMF 架構，PFCP 使用 TLV，SBI 使用 HTTP2, OpenAPI
 經過了對 free5GC 的程式碼的研讀後，我們瞭解 free5GC 大致上把控制端的 NF 大致規劃成三種部件：SBI、中心處理部件、與其他。以 SMF 為例 (見圖~\ref{fig:free5gc_smf_arch})，分為 SBI、Flow Procedure、與 PFCP。
 SBI~\cite{3gpp.29.500} 全名為 service base interface
-，是 3GPP 於 R15 (5GS) 設計出來做爲控制端溝通的協定，主要基於 HTTP2、RESTful API 設計，分為 Consumer 與 Producer，由 Consumer 向 Producer 要求 (request) 資訊。相較於 HTTP，HTTP2 提供了更少的網路延遲，而使用 RESTful API 則可讓 API 有更加的結構，並且 3GPP 直接採用 OpenAPI 格式來定義 RESTful 的格式，得以在設計好 OpenAPI 文件後，可讓人類快速讀懂，也可以透過 OpenAPI 工具直接產生出相對應的程式碼，而 free5GC 正是透過 OpenAPI generator 工具把 3GPP 定義的 SBI YAML 檔案轉譯出 Go 語言的 gin server 程式。
+，是 3GPP 於 R15 (5GS) 設計出來做為控制端溝通的協定，主要基於 HTTP2、RESTful API 設計，分為 Consumer 與 Producer，由 Consumer 向 Producer 要求 (request) 資訊。相較於 HTTP，HTTP2 提供了更少的網路延遲，而使用 RESTful API 則可讓 API 有更加的結構，並且 3GPP 直接採用 OpenAPI 格式來定義 RESTful 的格式，得以在設計好 OpenAPI 文件後，可讓人類快速讀懂，也可以透過 OpenAPI 工具直接產生出相對應的程式碼，而 free5GC 正是透過 OpenAPI generator 工具把 3GPP 定義的 SBI YAML 檔案轉譯出 Go 語言的 gin server 程式。
 PFCP~\cite{3gpp.29.244} 是 SMF 獨有的協議，不存在於除 SMF 與 UPF 外的其他 NF，主要是用來讓 SMF 與 UPF 溝通，並且對 UPF 下達相對應的封包轉發指令，於 3GPP 在 R14 時為了設計 4G EPC 中 CUPS (Control and User Plane Separation, 控制與用戶端分離) 而採用的。PFCP 建立於 UDP 之上並採用 TLV (type, length, value) 的格式設計，封包內容裡每個 IE (information element) 都會有三個主要成分：2 byte 的 type 用來描述 IE 種類、2 byte 的 length 用來描述 IE value 的長度、以及 length byte 的 value 用來敘述 IE 的內容。而 TLV 亦可巢狀使用，及一個 TLV 的 value 內可以包含其他一個或多個 TLV 使用。透過 TLV 的設計，PFCP 可以將訊息有效的壓縮長度。
 而 flow procedure 則是負責整個 SMF 的邏輯運算，經過 PFCP 或 SBI 解碼過的內容會被統一傳送給 Flow Procedure 並且由 Flow procedure 來決定相對要做的事情。
 
@@ -37,19 +36,18 @@ PFCP~\cite{3gpp.29.244} 是 SMF 獨有的協議，不存在於除 SMF 與 UPF �
 
 \pnote{圖要重畫}
 \begin{figure}[htbp]
-  \centering
-  \includegraphics[height=!,width=1\linewidth,keepaspectratio=true]
-                  {figures/free5gc_smf_arch}
-  % [] 放的是顯示在 list of figure 的文字
-  % {} 放的是顯示在圖下方的文字
-  \caption[free5GC 原生之 SMF 架構]{{\footnotesize free5GC 原生之 SMF 架構}}
-  \label{fig:free5gc_smf_arch}
+    \centering
+    \includegraphics[height=!,width=1\linewidth,keepaspectratio=true]{figures/free5gc_smf_arch}
+    % [] 放的是顯示在 list of figure 的文字
+    % {} 放的是顯示在圖下方的文字
+    \caption[free5GC 原生之 SMF 架構]{{\footnotesize free5GC 原生之 SMF 架構}}
+    \label{fig:free5gc_smf_arch}
 \end{figure}
 
 \section{系統層 API: OpenNetVM 系統介紹}
 \label{sec:opennetvm_intro}
 
-OpenNetVM 是一個由 加利福尼亞大學河濱分校 (UCR) 與 喬治華盛頓大學 (GW) 共同開發，基於 DPDK、Docker 容器、與共享記憶體 (shared memory) 設計的開發平臺，目標在於提供 Network Function 有更好的管理與效能，有幾個主要的優勢：
+OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 喬治華盛頓大學 (GW) 共同開發，基於 DPDK、Docker 容器、與共享記憶體 (shared memory) 設計的開發平臺，目標在於提供 Network Function 有更好的管理與效能，有幾個主要的優勢：
 
 \begin{itemize}
 \item \textbf{Container-based NFs:} OpenNetVM 平臺透過 Docker 容器管理運行於平臺上的 Network Function，因此只需要用一般 user space 程式的撰寫方式開發網路功能便可以輕易部屬至 OpenNetVM 平臺之上。
@@ -61,17 +59,21 @@ OpenNetVM 是一個由 加利福尼亞大學河濱分校 (UCR) 與 喬治華盛�
 \end{itemize}
 
 % Onvm 架構
-\cnote{TODO 描述 ONVM 架構}
-\cnote{TODO 介紹 DPDK, shared memory}
+\pnote{TODO 介紹 DPDK, shared memory}
+
+根據作者描述~\cite{netvm}\cite{paper.opennetvm}，OpenNetVM 的架構主要分成三個部分：NF Manager、NFlib 與 Network Functions (如圖~\ref{fig:netvm_arch})。NF Manager 負責與網卡溝通、維護 flow table、管理 NF 間的通訊，整個 NF Manager 包含三個線程 (thread)：Manager thread 負責管理共享記憶體跟追蹤 NF 狀態、RX thread 負責從網卡收取封包並分配給對應的 NF、TX thread 負責轉送 NF 要送給其他 NF 或要送到網卡的封包。NFlib 是 OpenNetVM 提供給使用者的 API，透過 NFlib 使用者的程式得以與 NF Manager 溝通以註冊 NF 狀態、獲取封包等。而 NF 則是指使用者開發的程式，NF 會被放置於 Docker 容器內並且透過 NFlib 與 NF Manager 溝通、讓 NF Manager 管理，每個 NF 在啟動時都會被分配到一個 receive ring 與 transmit ring，NF 會透過 NFlib 向 receive ring 獲取進入封包，並將送出封包送進 transmit ring 中。
+
+在 OpenNetVM 平臺被啟動時，NF Manager 會首先被啟動，並且直至 OpenNetVM 平臺關閉前都會持續運作，NF Manager 會透過 DPDK 在 hubepage 內分配出一塊共享記憶體，用以儲存與維護所有封包，並且此記憶體內的虛擬位址會共享於可以存取此封包的 NF 而無需作額外的轉換或複製。當主機網卡收到封包後，RX thread 會利用 DPDK 將封包輪詢至共享記憶體內，由於 DPDK 的 DMA 與核心旁路 (kernel bypass) 機制，得以讓封包享有零複製 (zero-copy) 的效率，RX thread 在把封包輪詢至共享記憶體後，會逐一檢查封包後將包含封包位址與元資訊 (metadata) 的 packet descriptor 轉送給相對應 NF 的 Receive ring，透過這 packet descriptor，NF 無需再複製封包便可存取到封包的位址與內容。而 TX thead 會執行與 RX thread 類似的功能，差別在於 TX thread 是負責轉送從 NF transmit ring 送出的封包的 packet descriptor，如果要傳送至另一個 NF，TX thread 會將 packet descriptor 提供給另一 NF；而如果是要送出網卡，TX thread 則會透過 DPDK 將封包從網卡送出。
+
+在 OpenNetVM 上執行的 NF 會透過 NFlib 與 NF Manager 溝通，在 NF 開始運行時須向 Manager 註冊服務，並且會提供 NFlib 回呼函式 (callback function)，當有 packet descriptor 送進 NF 的 receive ring 時，NFlib 會呼叫回呼函式讓 NF 得以作出相對應的操作，而當 NF 決定好操作後，便會將操作與相對應的 packet descriptor 放進 transmit ring 讓 Manager 執行。另外值得注意的是，除了 NF Manager 中的 Manager thread、RX thread、TX thread 會各佔據一個 CPU 核心外，每個 NF 亦會獨佔一個 CPU 核心。
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[height=!,width=1\linewidth,keepaspectratio=true]
-                    {figures/netvm-arch.png}
-                    % [] 放的是顯示在 list of figure 的文字
-                    % {} 放的是顯示在圖下方的文字
-                    \caption[OpenNetVM 架構]{{\footnotesize OpenNetVM 架構 \cite{onvm}}}
-                    \label{fig:netvm_arch}
+    \includegraphics[height=!,width=1\linewidth,keepaspectratio=true]{figures/netvm-arch.png}
+    % [] 放的是顯示在 list of figure 的文字
+    % {} 放的是顯示在圖下方的文字
+    \caption[OpenNetVM 架構]{{\footnotesize OpenNetVM 架構 \cite{onvm}}}
+    \label{fig:netvm_arch}
 \end{figure}
 
 % 選擇 ONVM 理由、好處
@@ -208,7 +210,7 @@ OpenNetVM 是一個由 加利福尼亞大學河濱分校 (UCR) 與 喬治華盛�
   \label{fig:kernel_packet_processing_arch}
 \end{figure}
 
-不管是控制端界面上的 NGAP、SBI、或 PFCP 都是建立在 Berkely Socket 上，而如章節~\ref{sec:challenge}所述，我們認為 5G 核心網路的 NF 因為網路功能虛擬化 (NFV)，因此可以放置於同一主機上。除了 NGAP 是 N2 介面的協定，即基地臺與核心網路的連結，因為基地臺並未虛擬化而是需要佈署在邊緣端，因此我們認爲將包含 SBI 與 PFCP 的協定若可以用更高效率的共享記憶體設計取代 Berkeley Socket，將能大幅提高核心網路控制端的效能。更者，由於 SBI 是建立於 TCP 協定之上，還會遇到諸如 TCP 三方交握或流量控制 (flow control)、擁塞控制 (congestion control) 等機制影響效能，移植至 shared memory 應該能大幅提升效能。
+不管是控制端界面上的 NGAP、SBI、或 PFCP 都是建立在 Berkely Socket 上，而如章節~\ref{sec:challenge}所述，我們認為 5G 核心網路的 NF 因為網路功能虛擬化 (NFV)，因此可以放置於同一主機上。除了 NGAP 是 N2 介面的協定，即基地臺與核心網路的連結，因為基地臺並未虛擬化而是需要佈署在邊緣端，因此我們認為將包含 SBI 與 PFCP 的協定若可以用更高效率的共享記憶體設計取代 Berkeley Socket，將能大幅提高核心網路控制端的效能。更者，由於 SBI 是建立於 TCP 協定之上，還會遇到諸如 TCP 三方交握或流量控制 (flow control)、擁塞控制 (congestion control) 等機制影響效能，移植至 shared memory 應該能大幅提升效能。
 
 % SMF 的改進
 
@@ -217,7 +219,7 @@ OpenNetVM 是一個由 加利福尼亞大學河濱分校 (UCR) 與 喬治華盛�
 
 儘管透過 C program 呼叫 Golang shared library 在實踐成本上遠低於使用 Golang 呼叫 C library，但我們希望在程式設計上可以提供更高的擴充性 (scalibility) 與更加一般化 (generalize)，且若可以設計成 函式庫 (library) 形式，會更加利於使用者使用且可以不僅限此專案使用，因此我們希望嘗試以可以直接使用之 Golang 函式庫方向開發。
 
-由於從 OpenNetVM API 上獲取的封包是直接傳回封包所在記憶體位置的指標，而封包爲連結層 (link layer) 之上的內容，因此我們決定開發成類似 Goalng 原生之 net 函式庫，透過 Golang 所提供的 interface 性質，直接取代掉 PFCP 底層之 \lstinline[language=Go]{net.UdpConn} interface，我們命名之 \lstinline[language=Go]{onvmNet.ONVMConn} interface~\cite{github.onvmNet} (見圖~\ref{fig:smf_porting_arch})。
+由於從 OpenNetVM API 上獲取的封包是直接傳回封包所在記憶體位置的指標，而封包為連結層 (link layer) 之上的內容，因此我們決定開發成類似 Goalng 原生之 net 函式庫，透過 Golang 所提供的 interface 性質，直接取代掉 PFCP 底層之 \lstinline[language=Go]{net.UdpConn} interface，我們命名之 \lstinline[language=Go]{onvmNet.ONVMConn} interface~\cite{github.onvmNet} (見圖~\ref{fig:smf_porting_arch})。
 
 \begin{figure}[htbp]
     \centering
@@ -265,7 +267,7 @@ OpenNetVM 是一個由 加利福尼亞大學河濱分校 (UCR) 與 喬治華盛�
   \label{fig:smf_porting_arch}
 \end{figure}
 
-在設計此函式庫時有部分條件需要考慮，首先，由於 Golang 在透過 CGO 呼叫 C 函式時，有不可呼叫內部有訊號註冊 (signal handling) 的函式，其原因爲 Golang 本身有對訊號作內部處理，因此如果透過外部語言另外註冊訊號，會影響 Golang 程序底層訊號處理，但由於 OpenNetVM 在初始化階段需要透過 OpenNetVM 的 API 對系統作訊號註冊，因此會出現問題。而我們參考了網路上的解決方法，將訊號註冊放置 Golang 的 \lstinline[language=Go]{init} 函式，\lstinline[language=Go]{init} 函式是 Golang 設計給予在 main 函式執行起來前，就預先執行的函式，類似 C 語言的 \lstinline[language=C]{__attribute__ ((constructor))}。
+在設計此函式庫時有部分條件需要考慮，首先，由於 Golang 在透過 CGO 呼叫 C 函式時，有不可呼叫內部有訊號註冊 (signal handling) 的函式，其原因為 Golang 本身有對訊號作內部處理，因此如果透過外部語言另外註冊訊號，會影響 Golang 程序底層訊號處理，但由於 OpenNetVM 在初始化階段需要透過 OpenNetVM 的 API 對系統作訊號註冊，因此會出現問題。而我們參考了網路上的解決方法，將訊號註冊放置 Golang 的 \lstinline[language=Go]{init} 函式，\lstinline[language=Go]{init} 函式是 Golang 設計給予在 main 函式執行起來前，就預先執行的函式，類似 C 語言的 \lstinline[language=C]{__attribute__ ((constructor))}。
 
 然而，使用 \lstinline[language=Go]{init} 函式會遇到初始化參數無法透過程式執行過程中傳遞，因此我們採用 OpenNetVM 提供的 NF config 設計，透過 config 檔預先傳入 OpenNetVM 平臺之必要參數，諸如 DPDK 參數、Service ID、Instence ID 等。
 
