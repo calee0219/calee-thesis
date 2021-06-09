@@ -91,22 +91,19 @@ OpenNetVM 是一個由 加利福尼亞大學河濱分校 (UCR) 與 喬治華盛�
 
 \begin{figure}[ht]
   \centering
-  \subcaptionbox[b]{
-      5G 系統架構，控制端用 SBI 表示\\
-      \tiny (取自 TS 23.501 Figure 4.2.3-1)
-    \label{fig:5g_system_architecture_sbi}
-  }{
-    \includegraphics[height=!,width=0.45\linewidth,keepaspectratio=true]
-                    {figures/23_501_4-2-3-1_sys_arch_sbi}
-  }
-  \subcaptionbox[b]{
-      5G 系統架構，控制端用參考點表示\\
-      \tiny (取自 TS 23.501 Figure 4.2.3-2)
-    \label{fig:5g_system_architecture_interface}
-  }{
-    \includegraphics[height=!,width=0.45\linewidth,keepaspectratio=true]
-                    {figures/23_501_4-2-3-2_sys_arch_ref}
-  }
+  \captionsetup{justification=centering}
+  \begin{subfigure}[b]{.5\linewidth}
+      \centering
+      \includegraphics[height=!,width=0.95\linewidth,keepaspectratio=true]{figures/23_501_4-2-3-1_sys_arch_sbi}
+      \caption[5G 系統架構，控制端用 SBI 表示]{{5G 系統架構，控制端用 SBI 表示\\\scriptsize (取自 TS 23.501 Figure 4.2.3-1)}}
+      \label{fig:5g_system_architecture_sbi}
+  \end{subfigure}%
+  \begin{subfigure}[b]{.5\linewidth}
+      \centering
+      \includegraphics[height=!,width=0.95\linewidth,keepaspectratio=true]{figures/23_501_4-2-3-2_sys_arch_ref}
+      \caption[5G 系統架構，控制端用參考點表示]{{5G 系統架構，控制端用參考點表示\\\scriptsize (取自 TS 23.501 Figure 4.2.3-2)}}
+      \label{fig:5g_system_architecture_interface}
+  \end{subfigure}
   % [] 放的是顯示在 list of figure 的文字
   % {} 放的是顯示在圖下方的文字
   \caption[5G 系統架構]{{\footnotesize 5G 系統架構~\cite{3gpp.23.501}}}
@@ -120,20 +117,19 @@ OpenNetVM 是一個由 加利福尼亞大學河濱分校 (UCR) 與 喬治華盛�
 
 \begin{figure}[htbp]
   \centering
-  \subcaptionbox[b]{
-    註冊流程
-    \label{fig:reg_proc}
-  }{
-    \includegraphics[height=!,width=0.4\linewidth,keepaspectratio=true]
-                    {figures/23_502_4_2_2_2_2-1_reg_proc}
-  }
-  \subcaptionbox[b]{
-    連線建立流程
-    \label{fig:sess_establish}
-  }{
-    \includegraphics[height=!,width=0.475\linewidth,keepaspectratio=true]
-                    {figures/23_502_4_3_2_2_1-1_sess_establish}
-  }
+  \captionsetup{justification=centering}
+  \begin{subfigure}[b]{.5\linewidth}
+      \centering
+      \includegraphics[height=!,width=0.835\linewidth,keepaspectratio=true]{figures/23_502_4_2_2_2_2-1_reg_proc}
+      \caption[註冊流程]{{註冊流程\\\scriptsize (取自 TS 23.502 Figure 4.2.2.2.2-1)}}
+      \label{fig:reg_proc}
+  \end{subfigure}%
+  \begin{subfigure}[b]{.5\linewidth}
+      \centering
+      \includegraphics[height=!,width=1\linewidth,keepaspectratio=true]{figures/23_502_4_3_2_2_1-1_sess_establish}
+      \caption[連線建立流程]{{連線建立流程\\\scriptsize (取自 TS 23.502 Figure 4.2.2.2.2-2)}}
+      \label{fig:sess_establish}
+  \end{subfigure}
   \caption[5G 流程]{{\footnotesize 5G 流程~\cite{3gpp.23.502}}}
   \label{fig:5g_procedure}
 \end{figure}
@@ -224,45 +220,45 @@ OpenNetVM 是一個由 加利福尼亞大學河濱分校 (UCR) 與 喬治華盛�
 由於從 OpenNetVM API 上獲取的封包是直接傳回封包所在記憶體位置的指標，而封包爲連結層 (link layer) 之上的內容，因此我們決定開發成類似 Goalng 原生之 net 函式庫，透過 Golang 所提供的 interface 性質，直接取代掉 PFCP 底層之 \lstinline[language=Go]{net.UdpConn} interface，我們命名之 \lstinline[language=Go]{onvmNet.ONVMConn} interface~\cite{github.onvmNet} (見圖~\ref{fig:smf_porting_arch})。
 
 \begin{figure}[htbp]
-  \centering
-  \subcaptionbox{
-    原生之 free5GC SMF 架構
-    \label{fig:kernel_smf_arch}
-  }{
-    \begin{tikzpicture}
-      \tikzset{
-        disc 1/.style={minimum width=15mm},
-        disc 2/.style={minimum width=25mm},
-        disc 3/.style={minimum width=35mm},
-        disc 4/.style={minimum width=45mm},
-      };
-      \tikzset{box/.style={minimum height=2em,draw=black,inner sep=0,thick,node distance=2em}}
-      \node[disc 1,draw,box] (d1) {SMF};
-      \node[disc 2,draw,box,below of=d1] (d2) {free5gc/pfcp};
-      \node[disc 3,draw,box,below of=d2] (d3) {net.UdpConn};
-      \node[disc 4,draw,box,below of=d3] (d4) {Linux Berkeley Socket};
-      \node[below of=d3,node distance=1em,opacity=0.6,fill=white,text opacity=1,text=blue] {\scriptsize System Call};
-    \end{tikzpicture}
-  }
-  \subcaptionbox{
-    OpenNetVM 移植後之 SMF 架構
-    \label{fig:onvm_smf_arch}
-  }{
-    \begin{tikzpicture}
-      \tikzset{
-        disc 1/.style={minimum width=15mm},
-        disc 2/.style={minimum width=25mm},
-        disc 3/.style={minimum width=35mm},
-        disc 4/.style={minimum width=45mm},
-      };
-      \tikzset{box/.style={minimum height=2em,draw=black,inner sep=0,thick,node distance=2em}}
-      \node[disc 1,draw,box] (d1) {SMF};
-      \node[disc 2,draw,box,below of=d1] (d2) {onvm-pfcp};
-      \node[disc 3,draw,box,below of=d2] (d3) {onvmNet.ONVMConn};
-      \node[disc 4,draw,box,below of=d3] (d4) {OpenNetVM};
-      \node[below of=d3,node distance=1em,opacity=0.6,fill=white,text opacity=1,text=blue] {\scriptsize cgo with ONVM API};
-    \end{tikzpicture}
-  }
+    \centering
+    \begin{subfigure}[b]{.5\linewidth}
+        \centering
+        \begin{tikzpicture}
+            \tikzset{
+                disc 1/.style={minimum width=15mm},
+                disc 2/.style={minimum width=25mm},
+                disc 3/.style={minimum width=35mm},
+                disc 4/.style={minimum width=45mm},
+            };
+            \tikzset{box/.style={minimum height=2em,draw=black,inner sep=0,thick,node distance=2em}}
+            \node[disc 1,draw,box] (d1) {SMF};
+            \node[disc 2,draw,box,below of=d1] (d2) {free5gc/pfcp};
+            \node[disc 3,draw,box,below of=d2] (d3) {net.UdpConn};
+            \node[disc 4,draw,box,below of=d3] (d4) {Linux Berkeley Socket};
+            \node[below of=d3,node distance=1em,opacity=0.6,fill=white,text opacity=1,text=blue] {\scriptsize System Call};
+        \end{tikzpicture}
+        \caption[原生之 free5GC SMF 架構]{{原生之 free5GC SMF 架構}}
+        \label{fig:kernel_smf_arch}
+    \end{subfigure}%
+    \begin{subfigure}[b]{.5\linewidth}
+        \centering
+        \begin{tikzpicture}
+            \tikzset{
+                disc 1/.style={minimum width=15mm},
+                disc 2/.style={minimum width=25mm},
+                disc 3/.style={minimum width=35mm},
+                disc 4/.style={minimum width=45mm},
+            };
+            \tikzset{box/.style={minimum height=2em,draw=black,inner sep=0,thick,node distance=2em}}
+            \node[disc 1,draw,box] (d1) {SMF};
+            \node[disc 2,draw,box,below of=d1] (d2) {onvm-pfcp};
+            \node[disc 3,draw,box,below of=d2] (d3) {onvmNet.ONVMConn};
+            \node[disc 4,draw,box,below of=d3] (d4) {OpenNetVM};
+            \node[below of=d3,node distance=1em,opacity=0.6,fill=white,text opacity=1,text=blue] {\scriptsize cgo with ONVM API};
+        \end{tikzpicture}
+        \caption[OpenNetVM 移植後之 SMF 架構]{{OpenNetVM 移植後之 SMF 架構}}
+        \label{fig:onvm_smf_arch}
+    \end{subfigure}
   % [] 放的是顯示在 list of figure 的文字
   % {} 放的是顯示在圖下方的文字
   \caption[SMF 相關性依賴]{{\footnotesize SMF 相關性依賴}}
