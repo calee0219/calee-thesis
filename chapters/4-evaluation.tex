@@ -1,6 +1,7 @@
 \chapter{實驗與效能評估}
 \label{chapter:evaluation}
 
+% https://hackmd.io/@calee/HkNQc2ByO/https%3A%2F%2Fhackmd.io%2FyR2SvjqNQayQeWL2onkvmg
 % https://docs.google.com/spreadsheets/d/11vgvawzM0E8TF6rnjfOtI_Z4iHDMS9jvwvSfVkNA-jU
 
 為驗證本論文設計之方法，將 free5GC 核心網路移植至 OpenNetVM，使用其所提供之 ABI 能有效提升核心網路之效能，本實驗分別對原生之 free5GC 核心網路部屬於 Ubuntu Linux，與經過 OpenNetVM 移植過後之 free5GC 核心網路一樣部屬於 Ubuntu Linux，分別對其控制端 (control plane) 與用戶端 (user plane) 之效能進行測試，最終比對其結果，以驗證經過 OpenNetVM 移植過後的 free5GC 核心網路確實能有效提供更好的性能。
@@ -96,6 +97,18 @@
 
 在用戶端的測試中，我們首先作了上行流量測試，分別使用不同大小的 ping 封包從 Node 1 藉由 Node 2 送至 Node 3，在這個測試中關閉 Node 3 回復 ping 的功能，觀察 Node 3 接收到的流量。
 
+\begin{figure}[htb]
+    \centering
+    % 圖片的高度與寬度, height 設為 ! 代表由寬度大小等比例縮放
+    \includegraphics[height=!,width=0.8\linewidth,keepaspectratio=true]{figures/up_eva_pkt_size}
+    % [] 放的是顯示在 list of figure 的文字
+    % {} 放的是顯示在圖下方的文字
+    \caption[用戶層上行效能比較]{{\footnotesize 用戶層上行效能比較}}
+    \label{fig:up_eva_pkt_size}
+\end{figure}
+
+圖~\ref{fig:up_eva_pkt_size}的縱軸是吞吐量，單位為每秒處理的總位元組，固定 CPU 時脈於 3000 MHz 並比較不同封包大小的影響。由途中可以很明顯的看出 LH5GC 用戶端流量處理能力遠高於 free5GC。在封包大小為 68 位元組 (Byte) 時，LH5GC 的吞吐量會是 free5GC 的十一倍之多，另外在封包大小大於 128 位元組後，LH5GC 的吞吐量會幾乎逼近原始產生的流量，足見得其效能並沒有達到 LH5GC 的流量上限，而是受制於網卡的處理能力。另外隨著封包大小的提升，free5GC 的吞吐量會有明顯的提升，其歸因於核心實作的單位時間封包處理數以達到其固定量。
+
 \subsection{來回流量比較}
 \label{subsec:uldl_comp}
 
@@ -104,17 +117,33 @@
 \begin{figure}[htb]
   \centering
   % 圖片的高度與寬度, height 設為 ! 代表由寬度大小等比例縮放
-  \includegraphics[height=!,width=1\linewidth,keepaspectratio=true]{figures/user_plan_performance}
+  \includegraphics[height=!,width=1\linewidth,keepaspectratio=true]{figures/up_uldl_comp}
   % [] 放的是顯示在 list of figure 的文字
   % {} 放的是顯示在圖下方的文字
-  \caption[用戶層效能]{{\footnotesize 用戶層效能}}
-  \label{fig:user_plan_performance}
+  \caption[用戶層上下行比較]{{\footnotesize 用戶層上下行比較}}
+  \label{fig:up_uldl_comp}
 \end{figure}
+
+圖~\ref{fig:up_uldl_comp}在固定 CPU 時脈於 3000 MHz 並使用 68 位元組的封包，比較 LH5GC 與 free5GC 分別在 Node 1、Node 2、與 Node 3 的上下行流量，藍色長條顯示當只有測試上行時的流量，而紅、黃色長條則是在同時有上下行流量時，其各自的流量大小，縱軸為吞吐量，這裡單位取每秒處理的封包數量。可以看到當流量從 Node 1 被產生到送到 Node 2 處理時，free5GC 所能承受的封包數量足足八倍有餘，而當封包回復至 Node 1 時，LH5GC 的流量會是原本送出時的 $\dfrac{1}{3}$，而 free5GC 則會是降低成原來的 $\dfrac{1}{13}$ (比較 Node 1 紅、黃值條的差距)。
+
+另一個有趣的觀察是於 Node 2 比較單獨上行與上下行流量分配的差異，LH5GC 在單獨上行可處理的封包量約等於同時處理上下行的封包量，而 free5GC 則是可以處理加倍的吞吐量。推測是由於受益於 Kernel Socket 的實作u在同時處理上下行時可以分別使用不同的 Kernel Thread 處理，而 LH5GC 由於是透過 DPDK 實作，會搶佔單獨一個 CPU 核心進行網卡封包的輪詢，因此若需要同時處理上下行，亦會受限於單一核心的輪詢能力。
 
 \subsection{CPU 時脈影響}
 \label{subsec:cpu_clock}
 
 由於在測試的過程中，我們發現 CPU 時脈會對劉量產稱可觀的影響，因此我們也嘗試測試 CPU 時脈與流量的關係。
+
+\begin{figure}[htb]
+    \centering
+    % 圖片的高度與寬度, height 設為 ! 代表由寬度大小等比例縮放
+    \includegraphics[height=!,width=0.8\linewidth,keepaspectratio=true]{figures/up_cpu_clock}
+    % [] 放的是顯示在 list of figure 的文字
+    % {} 放的是顯示在圖下方的文字
+    \caption[用戶層受時脈影響分析]{{\footnotesize 用戶層受時脈影響分析}}
+    \label{fig:up_cpu_clock}
+\end{figure}
+
+圖~\ref{fig:up_cpu_clock}透過 Linux 系統指令限制 CPU 的時脈，可以看出隨著時脈增加，LH5GC 單位時間處理的封包數明顯增長，而對 free5GC 的影響則較不明顯。透過這張圖可以發現，如果有足夠的 CPU 時脈，LH5GC 將可不斷增加吞吐量。
 
 \section{控制層效能分析}
 \label{sec:cp_evaluation}
@@ -122,8 +151,58 @@
 \subsection{PFCP 延遲差異}
 \label{subsec:pfcp_comp}
 
+我們測試當 UE 建立連線以及換手時所會涉及到的 PFCP 訊息延遲，包含建立連線上行路徑的 Session Establishment、建立下行路徑的 Session Modification (1)、換手時改變上行路徑時的 Session Modification (2)、以及換手時改變下行路徑的 Modification (3)。由於 LH5GC 基於 OpenNetVM 平臺的 CPU 配置，只會使用到 3 個 CPU 核心，因此在 free5GC 的測試時我們也跑了兩種測試，其一是在同一系統上開啟 3 個 OpenNetVM 平臺上的無功能 NF，模擬 LH5GC 的核心使用狀況，另一個則是直接透過系統指令所著核心數，另 free5GC 只能在三個核心上執行。
+
+\begin{figure}[htb]
+    \centering
+    % 圖片的高度與寬度, height 設為 ! 代表由寬度大小等比例縮放
+    \includegraphics[height=!,width=1\linewidth,keepaspectratio=true]{figures/cp_pfcp_comp}
+    % [] 放的是顯示在 list of figure 的文字
+    % {} 放的是顯示在圖下方的文字
+    \caption[PFCP 訊息延遲比較]{{\footnotesize PFCP 訊息延遲比較}}
+    \label{fig:cp_pfcp_comp}
+\end{figure}
+
+圖\ref{fig:cp_pfcp_comp}的縱軸是時間，取毫秒為單位。可以看出 HL5GC 在各信息的平均延遲皆小於 free5GC 的測試。具有 3 個空 NF 的延遲會是最大的，推測是雖然 3 個 NF 並沒有功能，但還是會消耗 CPU 的運算資源。
+
 \subsection{SBI 延遲差異}
 \label{subsec:sbi_comp}
 
+\begin{figure}[htb]
+    \centering
+    % 圖片的高度與寬度, height 設為 ! 代表由寬度大小等比例縮放
+    \includegraphics[height=!,width=1\linewidth,keepaspectratio=true]{figures/cp_sbi_comp}
+    % [] 放的是顯示在 list of figure 的文字
+    % {} 放的是顯示在圖下方的文字
+    \caption[SBI 訊息延遲比較]{{\footnotesize SBI 訊息延遲比較}}
+    \label{fig:cp_sbi_comp}
+\end{figure}
+
 \subsection{控制流程延遲比較}
 \label{subsec:cp_proc_comp}
+
+\begin{figure}[htb]
+    \centering
+    \begin{subfigure}[b]{.5\linewidth}
+        \centering
+        \includegraphics[height=!,width=0.95\linewidth,keepaspectratio=true]{figures/cp_proc_reg}
+        \caption[]{{\footnotesize}}
+        \label{fig:cp_proc_reg}
+    \end{subfigure}%
+    \begin{subfigure}[b]{.5\linewidth}
+        \centering
+        \includegraphics[height=!,width=0.95\linewidth,keepaspectratio=true]{figures/cp_proc_sess}
+        \caption[]{{\footnotesize}}
+        \label{fig:cp_proc_sess}
+    \end{subfigure}
+    \begin{subfigure}[b]{.5\linewidth}
+        \centering
+        \includegraphics[height=!,width=0.95\linewidth,keepaspectratio=true]{figures/cp_proc_ho}
+        \caption[]{{\footnotesize}}
+        \label{fig:cp_proc_ho}
+    \end{subfigure}%
+    % [] 放的是顯示在 list of figure 的文字
+    % {} 放的是顯示在圖下方的文字
+    \caption[控制流程延遲差異]{{\footnotesize 控制流程延遲差異}}
+    \label{fig:cp_proc_comp}
+\end{figure}
