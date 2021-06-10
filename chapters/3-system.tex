@@ -59,7 +59,6 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 \end{itemize}
 
 % Onvm 架構
-\pnote{TODO 介紹 DPDK, shared memory}
 
 根據作者描述~\cite{netvm}\cite{paper.opennetvm}，OpenNetVM 的架構主要分成三個部分：NF Manager、NFlib 與 Network Functions (如圖~\ref{fig:netvm_arch})。NF Manager 負責與網卡溝通、維護 flow table、管理 NF 間的通訊，整個 NF Manager 包含三個線程 (thread)：Manager thread 負責管理共享記憶體跟追蹤 NF 狀態、RX thread 負責從網卡收取封包並分配給對應的 NF、TX thread 負責轉送 NF 要送給其他 NF 或要送到網卡的封包。NFlib 是 OpenNetVM 提供給使用者的 API，透過 NFlib 使用者的程式得以與 NF Manager 溝通以註冊 NF 狀態、獲取封包等。而 NF 則是指使用者開發的程式，NF 會被放置於 Docker 容器內並且透過 NFlib 與 NF Manager 溝通、讓 NF Manager 管理，每個 NF 在啟動時都會被分配到一個 receive ring 與 transmit ring，NF 會透過 NFlib 向 receive ring 獲取進入封包，並將送出封包送進 transmit ring 中。
 
@@ -79,11 +78,20 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 % 選擇 ONVM 理由、好處
 透過 OpenNetVM 的 API (Application Programming Interface) 設計，我們可以快速開發基於 DPDK 與共享記憶體的網路程式，因此開發 NF 時不需要考慮系統底層實作細節，大大的減少了開發所需時間。另外由於平臺是基於 Docker 容器包裹 NF，因此只需要可以跑在容器內的程式都可以部屬進此平臺內，同時可以享受容器隔離 (isolation) 的安全性，以及快速部屬、擴張的方便性。另外由於有 NF Manager 的幫助，我們無需對 NF 作進一步的管理，只需著重於單一 NF 的開發即可，大幅減少開發時對對管理與部屬所消耗的心力。
 
-\section{系統架構總覽與目標}
-\label{sec:arch_intro}
-\cnote{TODO}
+\section{系統設計目標}
+\label{sec:design_goal}
 
-由於網路功能虛擬化的興起，未來核心網路將不再每個功能都放置於不同機器上，而是會以軟體或容器的方式呈現，
+我們希望能夠在不改變 3GPP 標準規定的框架下，提升包含核心網路控制層與用戶層的效能，減少控制層訊號傳遞的延遲以加速連線建立速度與移動穩定度，並且嘗試透過更好的使用者端規則查找與封包處理方式，得以使使用者流量延遲降低、頻寬增加。藉由以軟體的方式實作符合 3GPP 標準的 NF，可以依然保有 5G 架構下的彈性、可擴充性與溝通能力。以下列舉我們認為需要做的增強方式：
+
+\begin{itemize}
+\item \textbf{部屬 NF 於同一節點:} 由於網路功能虛擬化的興起，未來核心網路將不再是每個功能都放置於不同機器上，而是會以軟體或容器的方式呈現，透過此一場景的觀察，我們認為 5G 核網的部屬有別於傳統 4G 核心網路，將可以將不同 NF 部屬於同一節點以增加訊息溝通之效率。而當我們需要將核心網路擴展時，僅需要透過 OpenNetVM 的 NF Manager 將流量導向不同節點，於額外節點上部屬新的 NF，並用 Network Slice 切割使用者連線，便可在不失溝通效能的前提下，輕鬆達到擴展核心網路之功能。
+\item \textbf{使用共享記憶體溝通:} 透過在同一節點上部屬高頻率溝通的 NF，我們嘗試取用同一節點的好處，利用 IPC 取代 RPC 溝通，同時透過仔細的共享記憶體操作，甚至可以達到無需移動訊息便可傳遞控制訊號。利用這樣的改善，我們不但可以減少 HTTP2 序列化 (serialization) 與反序列化 (de-serialization) 的效能流失，甚至可以捨棄 TCP/UDP 封裝與協定交換的過程。
+\item \textbf{越過核心處理:} 傳統 Linux 網路界面 (socket) 需要透過與核心 (Kernel) 溝通來獲取或傳送封包至用戶空間 (user-space)，但核心處理的過程中會耗費大量的時間與運算資源，同時必須遵守核心的網路疊 (network stack)，透過 Intel DPDK (Data Plane Development Kit) 的操作，我們可以越過核心處理，直接把封包從網卡上輪詢至用戶空間，大幅減少了經過核心的效能消耗。
+\item \textbf{TSS 規則查找:} 以往使用者端封包進入查找相對應規則時，多是使用線性搜尋，我們修改使用了 Tuple Space Search~\cite{paper.TSS} (TSS) 以增加搜尋速度。TSS 會對規則進行分堆，而在相同堆中的不同規則以雜湊表 (hash table) 儲存，因此在相同堆中的規則僅需複雜度 $O(1)$ 即可查到，又因堆數必小於等於總規則數，透過 TSS 查找的最差複雜度必定小於等於線性搜尋的速度。
+\item \textbf{調整換手流程:} 在換手流程中，為保持用戶端下行流量的連續性，行動網路會透過直接或間接轉發將下行封包從換手前的 RAN 轉發到換手後的 RAN，但這樣的流程將會增加下行路徑距離而提升延遲 (見圖~\ref{fig:handover_forw2buff})。我們透過修改流程，將下行封包緩衝於 UPF 內以減少下行封包行走之路徑距離。
+    \cnote{補圖 fig:handover\_forw2buff ($L^25GC$ Fig. 4)}
+\item \textbf{減少相同訊息的觸發次數:} 在 NF 溝通的過程中，有可能會發出相同的訊息，其中以 NF 向 NRF 發出 NF Discovery 訊息尤為明顯，我們透過快取 (cache) 的使用，讓相同的 NF Discovery 訊息只發出一次以減少控制端溝通時的訊息量，的以降低總體流程的延遲。
+\end{itemize}
 
 \section{SMF 移植細節}
 \label{sec:smf_porting}
@@ -92,24 +100,24 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 雖然 5G 使用 SBI 架構整合了大部分的控制端界面，但還是保留了 NGAP 跟 PFCP 於 N2 及 N4 界面 (見圖~\ref{fig:5g_system_architecture})，其中 N2 是介於基地臺 (RAN) 與 AMF 之間的通訊，透過 NGAP 協定，類似於 4G 時代的 S1AP 協定，而 N4 則是 SMF 與 UPF 間的界面，沿用 4G R10 之後 CU 分離概念所使用的 PFCP 協定。在這主要的三個界面中，SBI 是基於 HTTP2，傳輸層 (L4, transport layer) 是使用的是 TCP，NGAP 的傳輸層使用 SCTP，而 PFCP 的傳輸層使用的是 UDP。
 
 \begin{figure}[ht]
-  \centering
-  \captionsetup{justification=centering}
-  \begin{subfigure}[b]{.5\linewidth}
-      \centering
-      \includegraphics[height=!,width=0.95\linewidth,keepaspectratio=true]{figures/23_501_4-2-3-1_sys_arch_sbi}
-      \caption[5G 系統架構，控制端用 SBI 表示]{{5G 系統架構，控制端用 SBI 表示\\\scriptsize (取自 TS 23.501 Figure 4.2.3-1)}}
-      \label{fig:5g_system_architecture_sbi}
-  \end{subfigure}%
-  \begin{subfigure}[b]{.5\linewidth}
-      \centering
-      \includegraphics[height=!,width=0.95\linewidth,keepaspectratio=true]{figures/23_501_4-2-3-2_sys_arch_ref}
-      \caption[5G 系統架構，控制端用參考點表示]{{5G 系統架構，控制端用參考點表示\\\scriptsize (取自 TS 23.501 Figure 4.2.3-2)}}
-      \label{fig:5g_system_architecture_interface}
-  \end{subfigure}
-  % [] 放的是顯示在 list of figure 的文字
-  % {} 放的是顯示在圖下方的文字
-  \caption[5G 系統架構]{{\footnotesize 5G 系統架構~\cite{3gpp.23.501}}}
-  \label{fig:5g_system_architecture}
+    \centering
+    \captionsetup{justification=centering}
+    \begin{subfigure}[b]{.5\linewidth}
+        \centering
+        \includegraphics[height=!,width=0.95\linewidth,keepaspectratio=true]{figures/23_501_4-2-3-1_sys_arch_sbi}
+        \caption[5G 系統架構，控制端用 SBI 表示]{{5G 系統架構，控制端用 SBI 表示\\\scriptsize (取自 TS 23.501 Figure 4.2.3-1)}}
+        \label{fig:5g_system_architecture_sbi}
+    \end{subfigure}%
+    \begin{subfigure}[b]{.5\linewidth}
+        \centering
+        \includegraphics[height=!,width=0.95\linewidth,keepaspectratio=true]{figures/23_501_4-2-3-2_sys_arch_ref}
+        \caption[5G 系統架構，控制端用參考點表示]{{5G 系統架構，控制端用參考點表示\\\scriptsize (取自 TS 23.501 Figure 4.2.3-2)}}
+        \label{fig:5g_system_architecture_interface}
+    \end{subfigure}
+    % [] 放的是顯示在 list of figure 的文字
+    % {} 放的是顯示在圖下方的文字
+    \caption[5G 系統架構]{{\footnotesize 5G 系統架構~\cite{3gpp.23.501}}}
+    \label{fig:5g_system_architecture}
 \end{figure}
 
 % AMF, SMF, UPF 互動內容
@@ -118,22 +126,22 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 連線過程主要可以分為兩個階段：註冊 (register) 與連線建立 (Session Establishment)。連線過程會做諸如確認 UE 位置、驗證使用者資料、確認使用者能力、確認一些上下文、或給予 ID 等，主要由 AMF 參與並且向其他 NF (ex. UDM, AUSF) 詢問一些資訊。而連線建立主要會幫助 UE 建立正確的連線路徑、設定 QoS 參數、設定緩衝參數等等，而在這個階段裡，除了 AMF，SMF 與 UPF 也會在這個階段內參與運算，此時 SMF 負責管理與建立連線路徑，向核心網路端他會通知 UPF 建立路徑，而向 RAN 端他會透過 AMF 的中繼 (relay)，向 RAN 發出指令建立路徑或詢問資訊。
 
 \begin{figure}[htbp]
-  \centering
-  \captionsetup{justification=centering}
-  \begin{subfigure}[b]{.5\linewidth}
-      \centering
-      \includegraphics[height=!,width=0.835\linewidth,keepaspectratio=true]{figures/23_502_4_2_2_2_2-1_reg_proc}
-      \caption[註冊流程]{{註冊流程\\\scriptsize (取自 TS 23.502 Figure 4.2.2.2.2-1)}}
-      \label{fig:reg_proc}
-  \end{subfigure}%
-  \begin{subfigure}[b]{.5\linewidth}
-      \centering
-      \includegraphics[height=!,width=1\linewidth,keepaspectratio=true]{figures/23_502_4_3_2_2_1-1_sess_establish}
-      \caption[連線建立流程]{{連線建立流程\\\scriptsize (取自 TS 23.502 Figure 4.2.2.2.2-2)}}
-      \label{fig:sess_establish}
-  \end{subfigure}
-  \caption[5G 流程]{{\footnotesize 5G 流程~\cite{3gpp.23.502}}}
-  \label{fig:5g_procedure}
+    \centering
+    \captionsetup{justification=centering}
+    \begin{subfigure}[b]{.5\linewidth}
+        \centering
+        \includegraphics[height=!,width=0.835\linewidth,keepaspectratio=true]{figures/23_502_4_2_2_2_2-1_reg_proc}
+        \caption[註冊流程]{{註冊流程\\\scriptsize (取自 TS 23.502 Figure 4.2.2.2.2-1)}}
+        \label{fig:reg_proc}
+    \end{subfigure}%
+    \begin{subfigure}[b]{.5\linewidth}
+        \centering
+        \includegraphics[height=!,width=1\linewidth,keepaspectratio=true]{figures/23_502_4_3_2_2_1-1_sess_establish}
+        \caption[連線建立流程]{{連線建立流程\\\scriptsize (取自 TS 23.502 Figure 4.2.2.2.2-2)}}
+        \label{fig:sess_establish}
+    \end{subfigure}
+    \caption[5G 流程]{{\footnotesize 5G 流程~\cite{3gpp.23.502}}}
+    \label{fig:5g_procedure}
 \end{figure}
 
 
@@ -148,66 +156,66 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 原生的 free5GC 控制端界面是建構在 Linux 的 Berkeley Socket 上，先將 L4 層以上的負載內容 (payload) 封裝後，再透過呼叫 Berkeley Socket API，來達成封包傳送的功能。但由於 Berkeley Socket 屬於 user space library API，並且在傳送過程中，至少會經過兩次記憶體複製 (memory copy) (會先複製到 per process 的 kernel space memory，再複製到 network device 的 newtowrk queue) (見圖~\ref{fig:kernel_packet_processing_arch})，相對於後來出現的技術諸如 DPDK 或 XDP，實屬效能不彰。另外，即便是將 Network Function 部屬於同一機器上，由於 Berkeley Socket 屬於 RPC，傳送路徑必定會經過 Network Device，無法自動判定為 IPC 而使用更高效率的傳輸方式。基於以上理由，我們希望透過 OpenNetVM 的性質，同時可以於 RPC 下使用 DPDK 功能，與 IPC 使用 shared memory 功能，實現完全零記憶體複製 (zero copy)，以及可於同一主機下使用 IPC 來達到更佳的傳輸效率。除了記憶體複製的問題之外，由於透過 system call 到 kernel 的設計，也會遇到所有 system call 會遇到的問題，像是會有至少兩種中斷 (interrupt)，一個是在呼叫 system call 的中斷，另一個則是因為網卡與記憶體是透過 DMA (direct memory access) 的關係，會在 DMA 機制上需要在把封包搬進記憶體後由網卡打入中斷來呼叫中央處理器進行下一步處理。同時 kernel call 也會因為需要上下文切換 (context switch) 到中斷上下文 (interrupt context) 或甚至是遇到程序排程 (process scheduling) 的上下文切換而消耗大量運算資源與效能。
 
 \begin{figure}[htbp]
-  \centering
-  \begin{tikzpicture}[semithick,scale=1]
+    \centering
+    \begin{tikzpicture}[semithick,scale=1]
 
-    \draw[black, thin] (0,2) -- (16,2);
-    \draw[black, thin] (0,5) -- (16,5);
+        \draw[black, thin] (0,2) -- (16,2);
+        \draw[black, thin] (0,5) -- (16,5);
 
-    % Process
-    \tikzset{process/.style = {shape=circle,draw,minimum size=1.5em}}
-    \node[process] (p) at (8,6.7) {Process};
-    % NIC
-    \tikzset{NIC/.style = {shape=rectangle,draw,minimum size=1.5em}}
-    \node[NIC] (rx) at (5,) {NIC (RX)};
-    \node[NIC] (tx) at (11,) {NIC (TX)};
-    % Ring
-    \coordinate (rx_cod) at (5,3);
-    \draw [thin] (rx_cod) circle (0.75);
-    \foreach \angle in {90,67.5,...,-67.5}
+        % Process
+        \tikzset{process/.style = {shape=circle,draw,minimum size=1.5em}}
+        \node[process] (p) at (8,6.7) {Process};
+        % NIC
+        \tikzset{NIC/.style = {shape=rectangle,draw,minimum size=1.5em}}
+        \node[NIC] (rx) at (5,) {NIC (RX)};
+        \node[NIC] (tx) at (11,) {NIC (TX)};
+        % Ring
+        \coordinate (rx_cod) at (5,3);
+        \draw [thin] (rx_cod) circle (0.75);
+        \foreach \angle in {90,67.5,...,-67.5}
         \draw ($ (\angle:0.75)+(rx_cod) $) -- ($ (\angle-180:0.75)+(rx_cod) $);
-    \node [circle,thick,fill=white,draw=black,align=center] (rx_ring) at (rx_cod) {\tiny RX\\\tiny Ring};
-    \coordinate (tx_cod) at (11,3);
-    \draw [thin] (tx_cod) circle (0.75);
-    \foreach \angle in {90,67.5,...,-67.5}
+        \node [circle,thick,fill=white,draw=black,align=center] (rx_ring) at (rx_cod) {\tiny RX\\\tiny Ring};
+        \coordinate (tx_cod) at (11,3);
+        \draw [thin] (tx_cod) circle (0.75);
+        \foreach \angle in {90,67.5,...,-67.5}
         \draw ($ (\angle:0.75)+(tx_cod) $) -- ($ (\angle-180:0.75)+(tx_cod) $);
-    \node [circle,thick,fill=white,draw=black,align=center] (tx_ring) at (tx_cod) {\tiny TX\\\tiny Ring};
-    % buffer
-    \tikzset{buff/.style = {shape=rectangle,draw,fill=white,minimum width={width("skb")}}}
-    \node[buff] (rx_skb3) at (6.65,3.88) {skb};
-    \node[buff] (rx_skb2) at (6.60,3.92) {skb};
-    \node[buff] (rx_skb1) at (6.55,3.94) {skb};
-    \node[buff] (rx_skb) at (6.5,4) {skb};
-    \node[buff] (tx_skb3) at (9.65,3.88) {skb};
-    \node[buff] (tx_skb2) at (9.60,3.92) {skb};
-    \node[buff] (tx_skb1) at (9.55,3.94) {skb};
-    \node[buff] (tx_skb) at (9.5,4) {skb};
-    \node[buff] (rx_buf) at (7,6) {recv buff};
-    \node[buff] (tx_buf) at (9,6) {send buff};
-    % Direction arrow
-    \tikzset{copy/.style = {->,> = latex',thick,font=\scriptsize}}
-    \draw[copy] (rx) .. controls (6,2) .. (rx_skb) node[pos=0.5] {copy};
-    \draw[copy] (rx_skb) -- (rx_buf) node[pos=0.5] {copy};
-    \draw[copy] (tx_buf) -- (tx_skb) node[pos=0.5] {copy};
-    \draw[copy] (tx_skb) .. controls (10,2) .. (tx) node[pos=0.5] {copy};
-    %\draw[copy] (tx_skb) to[out=225,in=135] (tx);
-    % DMA & ring buffer
-    \draw[double,->,> = latex] (rx) -- (rx_ring) node[pos=0.5] {DMA};
-    \draw[double,->,> = latex] (tx_ring) -- (tx) node[pos=0.5] {DMA};
-    \draw[dashed,->,thick] (rx_ring) -- (rx_skb);
-    \draw[dashed,->,thick] (tx_ring) -- (tx_skb3);
-    % text
-    \node[text width=3em] at (15,6) {User Space};
-    \node[text width=3em] at (15,4) {Kernel Space};
-    \node[draw,text width=3em] at (13,5) {Socket};
-    \node[draw,text width=3em] at (13,3.7) {Network Stack};
-    \node[draw,text width=3em] at (13,2.5) {Driver};
-  \end{tikzpicture}
+        \node [circle,thick,fill=white,draw=black,align=center] (tx_ring) at (tx_cod) {\tiny TX\\\tiny Ring};
+        % buffer
+        \tikzset{buff/.style = {shape=rectangle,draw,fill=white,minimum width={width("skb")}}}
+        \node[buff] (rx_skb3) at (6.65,3.88) {skb};
+        \node[buff] (rx_skb2) at (6.60,3.92) {skb};
+        \node[buff] (rx_skb1) at (6.55,3.94) {skb};
+        \node[buff] (rx_skb) at (6.5,4) {skb};
+        \node[buff] (tx_skb3) at (9.65,3.88) {skb};
+        \node[buff] (tx_skb2) at (9.60,3.92) {skb};
+        \node[buff] (tx_skb1) at (9.55,3.94) {skb};
+        \node[buff] (tx_skb) at (9.5,4) {skb};
+        \node[buff] (rx_buf) at (7,6) {recv buff};
+        \node[buff] (tx_buf) at (9,6) {send buff};
+        % Direction arrow
+        \tikzset{copy/.style = {->,> = latex',thick,font=\scriptsize}}
+        \draw[copy] (rx) .. controls (6,2) .. (rx_skb) node[pos=0.5] {copy};
+        \draw[copy] (rx_skb) -- (rx_buf) node[pos=0.5] {copy};
+        \draw[copy] (tx_buf) -- (tx_skb) node[pos=0.5] {copy};
+        \draw[copy] (tx_skb) .. controls (10,2) .. (tx) node[pos=0.5] {copy};
+        %\draw[copy] (tx_skb) to[out=225,in=135] (tx);
+        % DMA & ring buffer
+        \draw[double,->,> = latex] (rx) -- (rx_ring) node[pos=0.5] {DMA};
+        \draw[double,->,> = latex] (tx_ring) -- (tx) node[pos=0.5] {DMA};
+        \draw[dashed,->,thick] (rx_ring) -- (rx_skb);
+        \draw[dashed,->,thick] (tx_ring) -- (tx_skb3);
+        % text
+        \node[text width=3em] at (15,6) {User Space};
+        \node[text width=3em] at (15,4) {Kernel Space};
+        \node[draw,text width=3em] at (13,5) {Socket};
+        \node[draw,text width=3em] at (13,3.7) {Network Stack};
+        \node[draw,text width=3em] at (13,2.5) {Driver};
+    \end{tikzpicture}
 
-  % [] 放的是顯示在 list of figure 的文字
-  % {} 放的是顯示在圖下方的文字
-  \caption[核心封包處理架構]{{\footnotesize 核心封包處理架構}}
-  \label{fig:kernel_packet_processing_arch}
+    % [] 放的是顯示在 list of figure 的文字
+    % {} 放的是顯示在圖下方的文字
+    \caption[核心封包處理架構]{{\footnotesize 核心封包處理架構}}
+    \label{fig:kernel_packet_processing_arch}
 \end{figure}
 
 不管是控制端界面上的 NGAP、SBI、或 PFCP 都是建立在 Berkely Socket 上，而如章節~\ref{sec:challenge}所述，我們認為 5G 核心網路的 NF 因為網路功能虛擬化 (NFV)，因此可以放置於同一主機上。除了 NGAP 是 N2 介面的協定，即基地臺與核心網路的連結，因為基地臺並未虛擬化而是需要佈署在邊緣端，因此我們認為將包含 SBI 與 PFCP 的協定若可以用更高效率的共享記憶體設計取代 Berkeley Socket，將能大幅提高核心網路控制端的效能。更者，由於 SBI 是建立於 TCP 協定之上，還會遇到諸如 TCP 三方交握或流量控制 (flow control)、擁塞控制 (congestion control) 等機制影響效能，移植至 shared memory 應該能大幅提升效能。
@@ -282,27 +290,28 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 設計完 onvmNet 函式庫後，之需將 free5GC 內部 PFCP 函式庫內有呼叫到 \lstinline[language=Go]{net.UDPConn} 的部分改成呼叫 \lstinline[language=Go]{onvmNet.ONVMConn}。另外由於 free5GC 是透過 go module 來維護套件，因此還需跟新 go.mod 之內容。而若有其他 Golang 專案想要嘗試使用 OpenNetVM 平臺，僅需作相同的取代，即可快速移植 (見圖~\ref{fig:free5gc_smf_arch})。
 
 % ONVM SMF 總架構圖
+\cnote{補整體架構圖 ($L^25GC$ Fig. 6)}
 \begin{comment}
-\begin{figure}[htbp]
-  \centering
-  \begin{tikzpicture}
-    \draw[step=1em,gray,very thin] (-6,-6) grid (6,6);
-    \filldraw[black] (0,0) circle (2pt) node[anchor=west] {};
+    \begin{figure}[htbp]
+        \centering
+        \begin{tikzpicture}
+            \draw[step=1em,gray,very thin] (-6,-6) grid (6,6);
+            \filldraw[black] (0,0) circle (2pt) node[anchor=west] {};
 
-    \tikzset{
-      component/.style={rectangle,draw=blue!60,fill=blue!5,thin,minimum width=7em},
-      endpoint/.style={rectangle,draw=red!60,fill=red!5,thin,minimum width=15em},
-      nf/.style={rectangle,draw=green!60,fill=green!5,thin},
-    };
-    \node[nf] (upf) {UPF};
-    \node[endpoint] (pfcp_ep) [above of=upf] {PFCP EndPoint};
-    \node[component] (pfcp_de) [above of=pfcp_ep] {PFCP Decoder};
-    \node[component] (pfcp_en) [above of=pfcp_ep,right of=pfcp_ep,xshift=2.5cm] {PFCP Encoder};
-    \node[component] (pfcp_b) [above of=pfcp_en] {PFCP Builder};
-    \node[component] (pfcp_han) [above of=pfcp_b,xshift=2.5cm] {PFCP Handler};
-    \node[component] (pfcp_dis) [right of=pfcp_han,xshift=-2.5cm] {PFCP Dispatcher};
-  \end{tikzpicture}
-\end{figure}
+            \tikzset{
+                component/.style={rectangle,draw=blue!60,fill=blue!5,thin,minimum width=7em},
+                endpoint/.style={rectangle,draw=red!60,fill=red!5,thin,minimum width=15em},
+                nf/.style={rectangle,draw=green!60,fill=green!5,thin},
+            };
+            \node[nf] (upf) {UPF};
+            \node[endpoint] (pfcp_ep) [above of=upf] {PFCP EndPoint};
+            \node[component] (pfcp_de) [above of=pfcp_ep] {PFCP Decoder};
+            \node[component] (pfcp_en) [above of=pfcp_ep,right of=pfcp_ep,xshift=2.5cm] {PFCP Encoder};
+            \node[component] (pfcp_b) [above of=pfcp_en] {PFCP Builder};
+            \node[component] (pfcp_han) [above of=pfcp_b,xshift=2.5cm] {PFCP Handler};
+            \node[component] (pfcp_dis) [right of=pfcp_han,xshift=-2.5cm] {PFCP Dispatcher};
+        \end{tikzpicture}
+    \end{figure}
 \end{comment}
 
 \section{UPF 移植細節}

@@ -13,4 +13,6 @@
 *.swp
 *.dot
 *.ps
+*.upa
+*.upb
 main.pdf
