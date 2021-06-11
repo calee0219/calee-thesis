@@ -271,10 +271,10 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
         \caption[OpenNetVM 移植後之 SMF 架構]{{OpenNetVM 移植後之 SMF 架構}}
         \label{fig:onvm_smf_arch}
     \end{subfigure}
-  % [] 放的是顯示在 list of figure 的文字
-  % {} 放的是顯示在圖下方的文字
-  \caption[SMF 相關性依賴]{{\footnotesize SMF 相關性依賴}}
-  \label{fig:smf_porting_arch}
+    % [] 放的是顯示在 list of figure 的文字
+    % {} 放的是顯示在圖下方的文字
+    \caption[SMF 相關性依賴]{{\footnotesize SMF 相關性依賴}}
+    \label{fig:smf_porting_arch}
 \end{figure}
 
 在設計此函式庫時有部分條件需要考慮，首先，由於 Golang 在透過 CGO 呼叫 C 函式時，有不可呼叫內部有訊號註冊 (signal handling) 的函式，其原因為 Golang 本身有對訊號作內部處理，因此如果透過外部語言另外註冊訊號，會影響 Golang 程序底層訊號處理，但由於 OpenNetVM 在初始化階段需要透過 OpenNetVM 的 API 對系統作訊號註冊，因此會出現問題。而我們參考了網路上的解決方法，將訊號註冊放置 Golang 的 \lstinline[language=Go]{init} 函式，\lstinline[language=Go]{init} 函式是 Golang 設計給予在 main 函式執行起來前，就預先執行的函式，類似 C 語言的 \lstinline[language=C]{__attribute__ ((constructor))}。
@@ -319,13 +319,13 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 \section{UPF 開發細節}
 \label{sec:upf_porting}
 
-在用戶端的開發上有別於 free5GC 使用 gtp5g 這個 kernel module 開發，LH5GC 提供了一個使用者空間核心旁路的 UPF。雖然使用 gtp5g 可以重複使用核心提供的網路疊，且會在核心空間直接進行用戶封包的封裝或解封，可以避免重複複製到使用者空間，但還是會遇到章節\ref{sec:challenge}所提到效能損耗，另外藉由核心開發的封包處理會需要透過中斷呼叫來溝通\cite{interrupt_process}與重複記憶體複製等效能瓶頸，而 UPF 又是核心網路中用戶端唯一且最重要的 NF，因此我們認為更應該對其作效能上的加速。相對於高度核心依賴的 gtp5g-UPF，我們著重發展於軟體虛擬化的 UPF 功能，將 UPF 拆成兩個子部件：UPF-C 與 UPF-U，UPF-C 負責控制訊號的接收處理，而 UPF-U 則負責對用戶封包進行規則查找與轉發，這兩個子部件分別會以不同的 OpenNetVM NF 包覆。
+在用戶端的開發上有別於 free5GC 使用 gtp5g 這個 kernel module 開發，\LHCN 提供了一個使用者空間核心旁路的 UPF。雖然使用 gtp5g 可以重複使用核心提供的網路疊，且會在核心空間直接進行用戶封包的封裝或解封，可以避免重複複製到使用者空間，但還是會遇到章節\ref{sec:challenge}所提到效能損耗，另外藉由核心開發的封包處理會需要透過中斷呼叫來溝通\cite{interrupt_process}與重複記憶體複製等效能瓶頸，而 UPF 又是核心網路中用戶端唯一且最重要的 NF，因此我們認為更應該對其作效能上的加速。相對於高度核心依賴的 gtp5g-UPF，我們著重發展於軟體虛擬化的 UPF 功能，將 UPF 拆成兩個子部件：UPF-C 與 UPF-U，UPF-C 負責控制訊號的接收處理，而 UPF-U 則負責對用戶封包進行規則查找與轉發，這兩個子部件分別會以不同的 OpenNetVM NF 包覆。
 
-如圖\ref{fig:onvm_nf_arch}，當 SMF 向 UPF 發起控制訊號時，會透過 PFCP 協定傳送至 UPF-C，由於 LH5GC 是透過共享記憶體作相同節點跨 NF 的溝通，我們沿用的 PFCP 的封裝格式但捨棄其底層 UDP 的傳輸協議，而是直接將封包放置於記憶體上提供互相存取以提升溝通效率。當 UPF-C 收到 PFCP 訊息後，會根據 TLV 格式將 PFCP 解碼，並小心的將內部資訊翻譯後放置於 UPF-C 與 UPF-U 可共同存取的地方。如圖\ref{fig:onvm_upf_arch}所示，UPF 會將上行 (UL) 與下行 (DL) 的規則分開儲存，各自維護一個 User Session 表格，在 User Session 表格內會存有各自的 Session Context，而這些上下文又會透過 TSS 資料結構儲存各種 session 內的規則用以接下來的規則查詢。
+如圖\ref{fig:onvm_nf_arch}，當 SMF 向 UPF 發起控制訊號時，會透過 PFCP 協定傳送至 UPF-C，由於 \LHCN 是透過共享記憶體作相同節點跨 NF 的溝通，我們沿用的 PFCP 的封裝格式但捨棄其底層 UDP 的傳輸協議，而是直接將封包放置於記憶體上提供互相存取以提升溝通效率。當 UPF-C 收到 PFCP 訊息後，會根據 TLV 格式將 PFCP 解碼，並小心的將內部資訊翻譯後放置於 UPF-C 與 UPF-U 可共同存取的地方。如圖\ref{fig:onvm_upf_arch}所示，UPF 會將上行 (UL) 與下行 (DL) 的規則分開儲存，各自維護一個 User Session 表格，在 User Session 表格內會存有各自的 Session Context，而這些上下文又會透過 TSS 資料結構儲存各種 session 內的規則用以接下來的規則查詢。
 
 \cnote{畫 fig:onvm\_upf\_arch}
 
-當用戶端封包進入到 LH5GC 系統時，OpenNetVM 的 NF Manager 會協助將封包送進 UPF-U 進行用戶端封包處理。由於 UPF-C 與 UPF-U 透過共享記憶體共用 Session Context，於 SMF 送至 UPF-C 的資訊 UPF-U 便可直接查詢，因此當封包進入時，UPF-U 無需另外與 UPF-C 溝通便可進行以下動作：
+當用戶端封包進入到 \LHCN 系統時，OpenNetVM 的 NF Manager 會協助將封包送進 UPF-U 進行用戶端封包處理。由於 UPF-C 與 UPF-U 透過共享記憶體共用 Session Context，於 SMF 送至 UPF-C 的資訊 UPF-U 便可直接查詢，因此當封包進入時，UPF-U 無需另外與 UPF-C 溝通便可進行以下動作：
 
 \begin{enumerate}
 \item UL/DL 流向偵測：UPF-C 會透過封包的目標 IP 決定其網路流向。

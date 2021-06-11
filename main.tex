@@ -13,7 +13,8 @@
 \usepackage{tikz}         % tikz to draw graph
 \usetikzlibrary{arrows,calc,shapes,chains}
 \usepackage[inline]{enumitem}
-%\usepackage{paralist}
+\usepackage{fixltx2e}
+\usepackage{xspace}
 % Table style
 \usepackage{xltabular}
 \usepackage{tabularx}
@@ -48,9 +49,19 @@
 	tabsize=3
 }
 
+\newcommand{\LHCN}{L\textsuperscript{2}5GC\xspace}
 \renewcommand\_{\textunderscore\allowbreak}
 \newcommand{\cnote}[1]{{\color{red}[calee: #1]}}
 \newcommand{\pnote}[1]{{\pdfcomment[color=blue,author={Chia-An Lee}]{#1}}}
+% Keywords command
+\providecommand{\keywordszh}[1]{
+    \vfill
+    \textbf{\textit{關鍵字：}} #1
+}
+\providecommand{\keywordsen}[1]{
+    \vfill
+    \textbf{\textit{Keywords: }} #1
+}
 
 %-------------------------------------------------------------------------------
 % Configuration

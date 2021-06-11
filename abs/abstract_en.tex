@@ -1,4 +1,19 @@
-\begin{abstract}%
+\begin{abstract}
 
+    As the cellular evolved, there is more and more feature must be matched in core network. That's why it comes with 5G cellular networks. In 5G, there are 3 main request:
+    \begin{enumerate*}
+    \item Enhanced Mobilie Broadband (eMBB)
+    \item Ultra-Reliable and Low Latency Commmunications (URLLC)
+    \item Massive Machine Type Communications (MMTC)
+    \end{enumerate*}
+    Besides, network function virtualization (NFV) are also getting more and more papular in this age. With the featues of NFV, 5G core network can be easy to operate, fast to deploye, and painless to scaled.
+    However, is the architecture of 5G core network already meet the 3 requirementi nowadays? Will it suffer from high throughput and low latency only with the feature of NFV?
+
+    This thesis with focus on the problems of high throughput and low latency. We start from some scenario observation, propose a innter-communication solution to low down the control plane communication delay and improve the user plane traffic forwarding throughput. We also implement the proof of concept to this solution and provide a new core network implementation.
+    Without losing the benifit of NFV, using DPDK and shared memory, we carefully rich zero-copy control plane communication. We also provide fast rule lookup with high throughput forwarding in user plane.
+
+    In the end, we evaluation our 5G core and proof the the user traffic can rich 11 times more efficient than origin. And the user plane latency can have one over two times then the origin one as well.
 
 \end{abstract}
+
+\keywordsen{Cellular networks, 5G, Core Network, NFV}
