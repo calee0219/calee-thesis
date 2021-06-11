@@ -93,6 +93,8 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 \item \textbf{減少相同訊息的觸發次數:} 在 NF 溝通的過程中，有可能會發出相同的訊息，其中以 NF 向 NRF 發出 NF Discovery 訊息尤為明顯，我們透過快取 (cache) 的使用，讓相同的 NF Discovery 訊息只發出一次以減少控制端溝通時的訊息量，的以降低總體流程的延遲。
 \end{itemize}
 
+因應以上系統目標，我們選擇使用 free5GC 與 OpenNetVM，重新設計了 HL5GC 核心網路平臺。
+
 \section{SMF 移植細節}
 \label{sec:smf_porting}
 
@@ -290,7 +292,7 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 設計完 onvmNet 函式庫後，之需將 free5GC 內部 PFCP 函式庫內有呼叫到 \lstinline[language=Go]{net.UDPConn} 的部分改成呼叫 \lstinline[language=Go]{onvmNet.ONVMConn}。另外由於 free5GC 是透過 go module 來維護套件，因此還需跟新 go.mod 之內容。而若有其他 Golang 專案想要嘗試使用 OpenNetVM 平臺，僅需作相同的取代，即可快速移植 (見圖~\ref{fig:free5gc_smf_arch})。
 
 % ONVM SMF 總架構圖
-\cnote{補整體架構圖 ($L^25GC$ Fig. 6)}
+\cnote{補整體架構圖 ($L^25GC$ Fig. 6) fig:onvm\_nf\_arch}
 \begin{comment}
     \begin{figure}[htbp]
         \centering
@@ -314,6 +316,24 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
     \end{figure}
 \end{comment}
 
-\section{UPF 移植細節}
+\section{UPF 開發細節}
 \label{sec:upf_porting}
-\cnote{不確定要不要描述 UPF 部分的細節}
+
+在用戶端的開發上有別於 free5GC 使用 gtp5g 這個 kernel module 開發，LH5GC 提供了一個使用者空間核心旁路的 UPF。雖然使用 gtp5g 可以重複使用核心提供的網路疊，且會在核心空間直接進行用戶封包的封裝或解封，可以避免重複複製到使用者空間，但還是會遇到章節\ref{sec:challeng}所提到效能損耗，另外藉由核心開發的封包處理會需要透過中斷呼叫來溝通\cite{interrupt_process}與重複記憶體複製等效能瓶頸，而 UPF 又是核心網路中用戶端唯一且最重要的 NF，因此我們認為更應該對其作效能上的加速。相對於高度核心依賴的 gtp5g-UPF，我們著重發展於軟體虛擬化的 UPF 功能，將 UPF 拆成兩個子部件：UPF-C 與 UPF-U，UPF-C 負責控制訊號的接收處理，而 UPF-U 則負責對用戶封包進行規則查找與轉發，這兩個子部件分別會以不同的 OpenNetVM NF 包覆。
+
+如圖\ref{fig:onvm_nf_arch}，當 SMF 向 UPF 發起控制訊號時，會透過 PFCP 協定傳送至 UPF-C，由於 LH5GC 是透過共享記憶體作相同節點跨 NF 的溝通，我們沿用的 PFCP 的封裝格式但捨棄其底層 UDP 的傳輸協議，而是直接將封包放置於記憶體上提供互相存取以提升溝通效率。當 UPF-C 收到 PFCP 訊息後，會根據 TLV 格式將 PFCP 解碼，並小心的將內部資訊翻譯後放置於 UPF-C 與 UPF-U 可共同存取的地方。如圖\ref{fig:onvm_upf_arch}所示，UPF 會將上行 (UL) 與下行 (DL) 的規則分開儲存，各自維護一個 User Session 表格，在 User Session 表格內會存有各自的 Session Context，而這些上下文又會透過 TSS 資料結構儲存各種 session 內的規則用以接下來的規則查詢。
+
+\cnote{畫 fig:onvm\_upf\_arch}
+
+當用戶端封包進入到 LH5GC 系統時，OpenNetVM 的 NF Manager 會協助將封包送進 UPF-U 進行用戶端封包處理。由於 UPF-C 與 UPF-U 透過共享記憶體共用 Session Context，於 SMF 送至 UPF-C 的資訊 UPF-U 便可直接查詢，因此當封包進入時，UPF-U 無需另外與 UPF-C 溝通便可進行以下動作：
+
+\begin{enumerate}
+\item UL/DL 流向偵測：UPF-C 會透過封包的目標 IP 決定其網路流向。
+\item User Session 查找：對於 UL 封包，UPF-C 會透過 TEID 查詢相對應的 User Session，反之對於 DL 封包，UPF-C 會利用目標 IP 屬於那一個 UE 的決定其所屬 User Session。
+\item PDR 搜尋：由於 User Session 內會存有一個或多個 PDR 規則，UPF-U 會透過 TSS 算法快速搜尋出封包所屬的 PDR，而當找到對應 PDR 後，便可連結出 PDR 所連結的其他規則 (例如 FAR、QER、BAR、URR)。
+\item 執行規則：在收集到所有規則狀態後，UPF-U 會負責以符合這些規則的方式處理此封包。
+\end{enumerate}
+
+另外為了 Paging 或 Handover 等流程需要，UPF-U 內部也有實作封包緩衝 (buffer) 的機制。我們設計將緩衝空間根據 UE Session 個別存放於 UPF-U 的記憶體空間內，當封包從 NF 的 receive ring 送入 UPF-U 時，若查找出的規則內有 buffer 這個應用規則 (apply action，存在於 FAR 內)，UPF-U 會將封包存入所屬 UE Session 的緩衝內，反之若是其它規則，則 UPF 會將規則包裝進 packet descriptor 的元資料內並送入 transmit ring 中處理。
+
+當 SMF 更新規則把 buffer 改成其他諸如 forward 或 drop 的規則後，會再度把封包從緩衝取出並包入相對應規則的 packet descriptor，而後送入 transmit ring 之中處理。另外值得注意的是，為了保證送出的封包順序正確，在儲存進緩衝時需要按照順序儲存。
