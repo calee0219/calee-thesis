@@ -31,22 +31,78 @@ PFCP~\cite{3gpp.29.244} 是 SMF 獨有的協議，不存在於除 SMF 與 UPF �
 
 其他控制端 NF 架構上大致類似，若是只有 SBI 界面的 NF 像是 UDM、PCF 等等，會捨棄其他部件，而像是 AMF 有 SBI 與 NGAP，則會用 NGAP 取代其他部件。
 
-% free5GC UPF 架構
-至於 free5GC 用戶端的 NF UPF 則是主要分成三個部分：N4 Handler、UPDK、與 gtp5g~\cite{gtp5g} (見圖~\ref{fig:free5gc_upf_arch})，N4 Handler 主要是負責處理從 SMF 送下來的 PFCP 控制訊號，他會直接透過 Linux UDP Socket 獲取 N4 訊號，解碼 PFCP 後翻譯成 UPF 看得懂的格式，比較有趣的是，因為 PFCP 是遵守 TLV 格式的，因此 free5GC 在撰寫這部分時，是直接解析 3GPP 文件後透過自己撰寫的程式碼生成器 (code generator) 來產生 encoder 與 decoder。UPDK 主要是負責處理用戶端訊息的邏輯，向上他會接收到 N4 Handler 所下的 PDR (Packet Detection Rules) / FAR (Forwarding Action Rules) 指令儲存起來，並在收到相對應的 GTP (GPRS Tunnelling Protocol) 封包後協助 gtp5g kernel module 進行相對應的封包處理。而 gtp5g 則是負責協助處理用戶端界面 N3、N6、與 N9 的 kernel module，在 N6 界面上，會透過 netlink 創造一個虛擬裝置 (virtual device) 來接收從 DN 來的封包，N3 與 N9 則是直接從 netlink module 拿到 routing 進來的封包。
-
-\pnote{圖重畫}
 \begin{figure}[htbp]
     \centering
-    \includegraphics[height=!,width=1\linewidth,keepaspectratio=true]{figures/free5gc_smf_arch}
-    % [] 放的是顯示在 list of figure 的文字
-    % {} 放的是顯示在圖下方的文字
+    \begin{tikzpicture}
+        \def\hw{7em}
+        \def\hh{4em}
+        \def\epw{15em}
+        \def\pw{8em}
+        \def\sw{6em}
+        \tikzstyle{box} = [rectangle,draw,align=center]
+        %
+        \node (consumer_nf) {Consumer NF (AMF/NEF)};
+        \node[box,below=of consumer_nf,minimum width=\epw] (sbi_ep) {SBI Endpoint};
+        \node[box,below=of sbi_ep.south west,xshift=((\epw - \hw) / 2),minimum width=\sw] (des) {Deserialization};
+        \node[box,below=of sbi_ep.south east,xshift=-((\epw - \hw) /2),minimum width=\sw] (ser) {Serialization};
+        \node (dsc) at ($(des)!0.5!(ser)$) {};
+        \node[box,below=of dsc,minimum width=\epw] (sbi_hand) {SBI Handler};
+        \node[box,fit=(sbi_ep) (des) (ser) (sbi_hand)] (sbi) {};
+        %
+        \node[box,below=of sbi,minimum height=\hh,minimum width=\pw] (flow) {Flow Procedure};
+        %
+        \tikzstyle{pbox} = [box,minimum width=\pw]
+        \node[pbox,left=of flow.north west,anchor=north east] (pfcp_hand) {PFCP Handler};
+        \node[pbox,left=of flow.south west,anchor=south east] (pfcp_build) {PFCP Builder};
+        \node[pbox,left=of pfcp_hand] (pfcp_disp) {PFCP Dispatcher};
+        \node[pbox,below=of pfcp_build] (pfcp_enc) {PFCP Encoder};
+        \node[pbox,left=of pfcp_enc] (pfcp_dec) {PFCP Decoder};
+        \node (ppc) at ($(pfcp_enc)!0.5!(pfcp_dec)$) {};
+        \node[box,below=of ppc,minimum width=\epw] (pfcp_ep) {PFCP Endpoint};
+        \node[box,fit=(pfcp_hand) (pfcp_build) (pfcp_enc) (pfcp_disp) (pfcp_dec) (pfcp_ep)] (pfcp) {};
+        \node[below=of pfcp_ep] (upf) {UPF};
+        \node[right=of upf,xshift=6.4em] (producer_nf) {Producer NF (PCF/UDM)};
+        %
+        \node[box,fit=(pfcp) (sbi)] (smf) {};
+        %
+        \tikzstyle{flow}  = [font=\scriptsize,align=center]
+        % Consumer
+        \def\sbioff{3.5em}
+        \def\soff{10pt}
+        \draw[->] ([xshift=-\soff] consumer_nf.south) -- ([xshift=-\soff] sbi_ep.north);
+        \draw[->] ([xshift=\soff] sbi_ep.north) -- ([xshift=\soff] consumer_nf.south);
+        \draw[->] ([xshift=-\sbioff] sbi_ep.south) -- (des.north);
+        \draw[->] (ser.north) -- ([xshift=\sbioff] sbi_ep.south);
+        \draw[->] (des.south) -- ([xshift=-\sbioff] sbi_hand.north);
+        \draw[->] ([xshift=\sbioff] sbi_hand.north) -- (ser.south);
+        \draw[->] ([xshift=-\soff] sbi_hand.south) -- ([xshift=-\soff] flow.north);
+        \draw[->] ([xshift=\soff] flow.north) -- ([xshift=\soff] sbi_hand.south);
+        % Producer
+        \draw[->] ([xshift=-\soff] flow.south) -- ([xshift=-\soff] producer_nf.north);
+        \draw[->] ([xshift=\soff] producer_nf.north) -- ([xshift=\soff] flow.south);
+        % PFCP
+        \def\poff{1.3em}
+        \def\pepoff{5.2em}
+        \draw[->] (pfcp_hand.east) -- ([yshift=\poff] flow.west);
+        \draw[->] ([yshift=-\poff] flow.west) -- (pfcp_build.east);
+        \draw[->] (pfcp_disp) -- (pfcp_hand);
+        \draw[->] (pfcp_build) -- (pfcp_enc);
+        \draw[->] (pfcp_dec) -- (pfcp_disp);
+        \draw[->] (pfcp_enc.south) -- ([xshift=\pepoff]pfcp_ep.north);
+        \draw[->] ([xshift=-\pepoff] pfcp_ep.north) -- (pfcp_dec.south);
+        \draw[->] ([xshift=-\soff] pfcp_ep.south) -- ([xshift=-\soff] upf.north);
+        \draw[->] ([xshift=\soff] upf.north) -- ([xshift=\soff] pfcp_ep.south);
+    \end{tikzpicture}
     \caption[free5GC 原生之 SMF 架構]{{\footnotesize free5GC 原生之 SMF 架構}}
     \label{fig:free5gc_smf_arch}
 \end{figure}
 
+% free5GC UPF 架構
+至於 free5GC 用戶端的 NF UPF 則是主要分成三個部分：N4 Handler、UPDK、與 gtp5g~\cite{gtp5g} (見圖~\ref{fig:free5gc_upf_arch})，N4 Handler 主要是負責處理從 SMF 送下來的 PFCP 控制訊號，他會直接透過 Linux UDP Socket 獲取 N4 訊號，解碼 PFCP 後翻譯成 UPF 看得懂的格式，比較有趣的是，因為 PFCP 是遵守 TLV 格式的，因此 free5GC 在撰寫這部分時，是直接解析 3GPP 文件後透過自己撰寫的程式碼生成器 (code generator) 來產生 encoder 與 decoder。UPDK 主要是負責處理用戶端訊息的邏輯，向上他會接收到 N4 Handler 所下的 PDR (Packet Detection Rules) / FAR (Forwarding Action Rules) 指令儲存起來，並在收到相對應的 GTP (GPRS Tunnelling Protocol) 封包後協助 gtp5g kernel module 進行相對應的封包處理。而 gtp5g 則是負責協助處理用戶端界面 N3、N6、與 N9 的 kernel module，在 N6 界面上，會透過 netlink 創造一個虛擬裝置 (virtual device) 來接收從 DN 來的封包，N3 與 N9 則是直接從 netlink module 拿到 routing 進來的封包。
+
 \begin{figure}[htbp]
     \centering
-    \begin{tikzpicture}[node/.style={rectangle,draw,font=\scriptsize\ttfamily}]
+    \begin{tikzpicture}
         \def\w{15em}
         \def\uh{9em}
         \def\kh{5em}
@@ -140,12 +196,69 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 \item \textbf{使用共享記憶體溝通:} 透過在同一節點上部屬高頻率溝通的 NF，我們嘗試取用同一節點的好處，利用 IPC 取代 RPC 溝通，同時透過仔細的共享記憶體操作，甚至可以達到無需移動訊息便可傳遞控制訊號。利用這樣的改善，我們不但可以減少 HTTP2 序列化 (serialization) 與反序列化 (de-serialization) 的效能流失，甚至可以捨棄 TCP/UDP 封裝與協定交換的過程。
 \item \textbf{越過核心處理:} 傳統 Linux 網路界面 (socket) 需要透過與核心 (Kernel) 溝通來獲取或傳送封包至用戶空間 (user-space)，但核心處理的過程中會耗費大量的時間與運算資源，同時必須遵守核心的網路疊 (network stack)，透過 Intel DPDK (Data Plane Development Kit) 的操作，我們可以越過核心處理，直接把封包從網卡上輪詢至用戶空間，大幅減少了經過核心的效能消耗。
 \item \textbf{TSS 規則查找:} 以往使用者端封包進入查找相對應規則時，多是使用線性搜尋，我們修改使用了 Tuple Space Search~\cite{paper.TSS} (TSS) 以增加搜尋速度。TSS 會對規則進行分堆，而在相同堆中的不同規則以雜湊表 (hash table) 儲存，因此在相同堆中的規則僅需複雜度 $O(1)$ 即可查到，又因堆數必小於等於總規則數，透過 TSS 查找的最差複雜度必定小於等於線性搜尋的速度。
-\item \textbf{調整換手流程:} 在換手流程中，為保持用戶端下行流量的連續性，行動網路會透過直接或間接轉發將下行封包從換手前的 RAN 轉發到換手後的 RAN，但這樣的流程將會增加下行路徑距離而提升延遲 (見圖~\ref{fig:handover_forw2buff})。我們透過修改流程，將下行封包緩衝於 UPF 內以減少下行封包行走之路徑距離。
-    \cnote{補圖 fig:handover\_forw2buff ($L^25GC$ Fig. 4)}
+\item \textbf{調整換手流程:} 在換手流程中，為保持用戶端下行流量的連續性，行動網路會透過直接或間接轉發將下行封包從換手前的 RAN 轉發到換手後的 RAN，但這樣的流程將會增加下行路徑距離而提升延遲 (見圖~\ref{fig:ho_forw2buff})。我們透過修改流程，將下行封包緩衝於 UPF 內以減少下行封包行走之路徑距離。
 \item \textbf{減少相同訊息的觸發次數:} 在 NF 溝通的過程中，有可能會發出相同的訊息，其中以 NF 向 NRF 發出 NF Discovery 訊息尤為明顯，我們透過快取 (cache) 的使用，讓相同的 NF Discovery 訊息只發出一次以減少控制端溝通時的訊息量，的以降低總體流程的延遲。
 \end{itemize}
 
-因應以上系統目標，我們選擇使用 free5GC 與 OpenNetVM，重新設計了 HL5GC 核心網路平臺。
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \begin{tikzpicture}
+            \tikzstyle{triangle} = [isosceles triangle,rotate=90,isosceles triangle apex angle=30]
+            \node[ellipse,draw] (dn) {DN};
+            \node[rectangle,draw,below=of dn] (upf) {UPF};
+            \node[rectangle,draw,minimum width=1em] (packet) at ($(dn)!0.5!(upf) + (-0.4,0)$) {};
+            \draw (packet.north west) -- (packet.center) -- (packet.north east);
+            \node[triangle,draw,below left=2em of upf.west,anchor=apex,label={left:\scriptsize s-RAN}] (s-ran) {};
+            \node[triangle,draw,below right=2em of upf.east,anchor=apex,label={left:\scriptsize t-RAN}] (t-ran) {};
+            \draw (dn) -- (upf);
+            \draw[-] (upf) -| (s-ran.apex);
+            \draw[-] (upf) -| (t-ran.apex);
+            \draw[-latex,red,thick] ([xshift=0.5em] dn.south west)
+            .. controls ++(90:-0.8) and ++(0:0.4) .. ([xshift=-0.5em] upf.north west)
+            .. controls ++(30:-0.1) and ++(90:0.3) .. ([xshift=-1.7em] upf.west)
+            .. controls ++(90:-0.3) and ++(180:0.2) .. (s-ran.apex)
+            .. controls (upf) .. (t-ran.apex);
+        \end{tikzpicture}
+        \caption[換手間接轉送]{{\footnotesize 換手間接轉送}}
+        \label{fig:with_forw_ho}
+    \end{subfigure}%
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \begin{tikzpicture}
+            \tikzstyle{triangle} = [isosceles triangle,rotate=90,isosceles triangle apex angle=30]
+            \node[ellipse,draw] (dn) {DN};
+            \node[rectangle,draw,below=of dn] (upf) {UPF};
+            \node[rectangle,draw,minimum width=1em] (packet) at ($(dn)!0.5!(upf) + (-0.4,0)$) {};
+            \draw (packet.north west) -- (packet.center) -- (packet.north east);
+            \node[rectangle,draw,minimum width=1em] (buff_packet_1) at ($(dn)!0.5!(upf) + (+0.5,-0.3)$) {};
+            \draw (buff_packet_1.north west) -- (buff_packet_1.center) -- (buff_packet_1.north east);
+            \node[rectangle,draw,minimum width=1em] (buff_packet_2) at ($(dn)!0.5!(upf) + (+1.0,-0.3)$) {};
+            \draw (buff_packet_2.north west) -- (buff_packet_2.center) -- (buff_packet_2.north east);
+            \node[rectangle,draw,minimum width=1em] (buff_packet_3) at ($(dn)!0.5!(upf) + (+1.5,-0.3)$) {};
+            \node[               minimum width=1em] (more_que)      at ($(dn)!0.5!(upf) + (+2.0,-0.3)$) {};
+            \node[rectangle,draw,fit=(buff_packet_1) (buff_packet_2) (buff_packet_3) (more_que),label={below:\tiny Buffer},inner sep=1] (buff) {};
+            \draw (buff_packet_3.north west) -- (buff_packet_3.center) -- (buff_packet_3.north east);
+            \node[triangle,draw,below left=2em of upf.west,anchor=apex,label={left:\scriptsize s-RAN}] (s-ran) {};
+            \node[triangle,draw,below right=2em of upf.east,anchor=apex,label={left:\scriptsize t-RAN}] (t-ran) {};
+            \draw (dn) -- (upf);
+            \draw[-] (upf) -| (s-ran.apex);
+            \draw[-] (upf) -| (t-ran.apex);
+            \draw[-latex,red,thick] ([xshift=0.5em] dn.south west)
+            .. controls ++(90:-0.8) and ++(0:-0.2) .. ([xshift=0.4em] upf.center)
+            .. controls ++(0:0.1) and ++(60:-0.3) .. ([xshift=-1.8em] buff.south);
+            \draw[-latex,red,thick] (buff_packet_3.east)
+            ..controls ++(0:0.3) and ++(60:0.3) .. (t-ran.apex);
+        \end{tikzpicture}
+        \caption[換手封包緩衝]{{\footnotesize 換手封包緩衝}}
+        \label{fig:without_forw_ho}
+    \end{subfigure}
+    \caption[換手下行處理]{{\footnotesize 換手下行封包處理}}
+    \label{fig:ho_forw2buff}
+\end{figure}
+
+因應以上系統目標，我們選擇使用 free5GC 與 OpenNetVM，重新設計了 \LHCN 核心網路平臺。
 
 \section{SMF 移植細節}
 \label{sec:smf_porting}
@@ -338,8 +451,6 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 在方法 (method) 的設計上，因為我們需要繼承 \lstinline[language=Go]{net.Conn} 這個 interface，因此我們實作了此 interface 所有提供之 method，讓使用者得以直接呼叫。
 
 另外在設計封包收取 (ReceiveFrom) 時，需要判斷此封包屬於那一個連線 (connection) 的，因此我們設計了 \lstinline{channelMap}，每個連線在聽到 (listen) 連線時會開出一個對應的 channel 並放入 channelMap，當處理者 (handler) 收到 OpenNetVM 給予的封包後，透過 HashMap 的方式以 $O(1)$ 的速度搜尋出相對應的 channel，再將封包送入 channel 得以送到正確的連線中。
-
-\cnote{補 Channel dispacher 設計圖}
 
 設計完 onvmNet 函式庫後，之需將 free5GC 內部 PFCP 函式庫內有呼叫到 \lstinline[language=Go]{net.UDPConn} 的部分改成呼叫 \lstinline[language=Go]{onvmNet.ONVMConn}。另外由於 free5GC 是透過 go module 來維護套件，因此還需跟新 go.mod 之內容。而若有其他 Golang 專案想要嘗試使用 OpenNetVM 平臺，僅需作相同的取代，即可快速移植 (見圖~\ref{fig:free5gc_smf_arch})。
 

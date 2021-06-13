@@ -69,7 +69,7 @@
 
 因此在務實面 (physically) 上將系統切分成三個節點，分別模擬使用者端流量發送、基地臺與核網處理、資料網路回覆 (圖~\ref{fig:eva_node})，在節點與節點中我們都是使用 Intel 的 10Gbps 雙孔網卡與 CAT-6A RJ45 網路線連接。在 Node 1 上面我們使用 MoonGen~\cite{paper.MoonGen} 軟體來產生流量。在 Node 2 上面我們分別佈署原生的 free5GC v3.0.4 與修改過後的 \LHCN 作為核心網路測試，另外比較特別的是，我們也把自行開發的 RAN UE 模擬器佈署在 Node 2 上面而非 Node 1 上，此模擬器會模擬 5G SA 的控制訊號與核心網路建立連線。而在 Node 3 上主要模擬資料網路回復封包，但若是測試單純下行流量，則會在 Node 3 上啟動 MoonGen 來產生流量。
 
-\pnote{改圖}
+\cnote{改圖}
 \begin{figure}[htbp]
     \centering
     \begin{tikzpicture}
