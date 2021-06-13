@@ -9,49 +9,38 @@
 \usepackage{amsmath}      % math, ex. \dfrac
 \usepackage{multirow}     % for multi-row table
 \usepackage{booktabs}     % table style used in books
-%\usepackage{graphviz}     % graphviz to draw graph
 \usepackage{tikz}         % tikz to draw graph
-\usetikzlibrary{arrows,calc,shapes,chains}
+\usetikzlibrary{arrows,arrows.meta,calc,shapes,chains,backgrounds,fit}
 \usepackage[inline]{enumitem}
 \usepackage{fixltx2e}
 \usepackage{xspace}
 % Table style
 \usepackage{xltabular}
-\usepackage{tabularx}
-\usepackage{longtable}
+%\usepackage{tabularx}
+%\usepackage{longtable}
 \usepackage{pdfcomment}
 \usepackage{todonotes}
 \renewcommand\tabularxcolumn[1]{m{#1}} % for vertical centering text in X column
 \setlist{topsep=1pt,itemsep=1pt,parsep=1pt,itemindent=0pt,leftmargin=0.13in}
-\usepackage{outlines}
+%\usepackage{outlines}
 \usepackage{soul}         % Highlite capability
-\soulregister\cite7
-\soulregister\ref7
-\usepackage{color}
-\definecolor{dkgreen}{rgb}{0,0.6,0}
-\definecolor{gray}{rgb}{0.5,0.5,0.5}
-\definecolor{mauve}{rgb}{0.58,0,0.82}
 \usepackage{listings}
 \lstset{frame=tb,
-	language=C,
 	aboveskip=3mm,
 	belowskip=3mm,
 	showstringspaces=false,
 	columns=flexible,
 	basicstyle={\small\ttfamily},
 	numbers=none,
-	numberstyle=\tiny\color{gray},
-	keywordstyle=\color{blue},
-	commentstyle=\color{dkgreen},
-	stringstyle=\color{mauve},
 	breaklines=true,
 	breakatwhitespace=true,
-	tabsize=3
+	tabsize=4
 }
 
 \newcommand{\LHCN}{L\textsuperscript{2}5GC\xspace}
 \renewcommand\_{\textunderscore\allowbreak}
-\newcommand{\cnote}[1]{{\color{red}[calee: #1]}}
+%\newcommand{\cnote}[1]{{\color{red}[calee: #1]}}
+\newcommand{\cnote}[1]{{\todo[author=calee]{#1}}}
 \newcommand{\pnote}[1]{{\pdfcomment[color=blue,author={Chia-An Lee}]{#1}}}
 % Keywords command
 \providecommand{\keywordszh}[1]{
