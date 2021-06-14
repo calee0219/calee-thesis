@@ -33,6 +33,8 @@ PFCP~\cite{3gpp.29.244} 是 SMF 獨有的協議，不存在於除 SMF 與 UPF �
 
 \begin{figure}[htbp]
     \centering
+    \pgfdeclarelayer{background}
+    \pgfsetlayers{background,main}
     \begin{tikzpicture}
         \def\hw{7em}
         \def\hh{4em}
@@ -41,7 +43,7 @@ PFCP~\cite{3gpp.29.244} 是 SMF 獨有的協議，不存在於除 SMF 與 UPF �
         \def\sw{6em}
         \tikzstyle{box} = [rectangle,draw,align=center]
         %
-        \node (consumer_nf) {Consumer NF (AMF/NEF)};
+        \node[align=center] (consumer_nf) {Consumer NF\\(AMF/NEF)};
         \node[box,below=of consumer_nf,minimum width=\epw] (sbi_ep) {SBI Endpoint};
         \node[box,below=of sbi_ep.south west,xshift=((\epw - \hw) / 2),minimum width=\sw] (des) {Deserialization};
         \node[box,below=of sbi_ep.south east,xshift=-((\epw - \hw) /2),minimum width=\sw] (ser) {Serialization};
@@ -49,7 +51,7 @@ PFCP~\cite{3gpp.29.244} 是 SMF 獨有的協議，不存在於除 SMF 與 UPF �
         \node[box,below=of dsc,minimum width=\epw] (sbi_hand) {SBI Handler};
         \node[box,fit=(sbi_ep) (des) (ser) (sbi_hand)] (sbi) {};
         %
-        \node[box,below=of sbi,minimum height=\hh,minimum width=\pw] (flow) {Flow Procedure};
+        \node[box,below=of sbi,minimum height=\hh,minimum width=\pw,fill=lightgray] (flow) {Flow Procedure};
         %
         \tikzstyle{pbox} = [box,minimum width=\pw]
         \node[pbox,left=of flow.north west,anchor=north east] (pfcp_hand) {PFCP Handler};
@@ -61,35 +63,34 @@ PFCP~\cite{3gpp.29.244} 是 SMF 獨有的協議，不存在於除 SMF 與 UPF �
         \node[box,below=of ppc,minimum width=\epw] (pfcp_ep) {PFCP Endpoint};
         \node[box,fit=(pfcp_hand) (pfcp_build) (pfcp_enc) (pfcp_disp) (pfcp_dec) (pfcp_ep)] (pfcp) {};
         \node[below=of pfcp_ep] (upf) {UPF};
-        \node[right=of upf,xshift=6.4em] (producer_nf) {Producer NF (PCF/UDM)};
+        \node[align=center] (producer_nf) at (flow|-upf) {Producer NF\\(PCF/UDM)};
         %
-        \node[box,fit=(pfcp) (sbi)] (smf) {};
+        \begin{pgfonlayer}{background}
+            \node[box,fit=(pfcp) (flow) (sbi),label={north:SMF},fill=white] (smf) {};
+        \end{pgfonlayer}
         %
         \tikzstyle{flow}  = [font=\scriptsize,align=center]
         % Consumer
-        \def\sbioff{3.5em}
         \def\soff{10pt}
         \draw[->] ([xshift=-\soff] consumer_nf.south) -- ([xshift=-\soff] sbi_ep.north);
         \draw[->] ([xshift=\soff] sbi_ep.north) -- ([xshift=\soff] consumer_nf.south);
-        \draw[->] ([xshift=-\sbioff] sbi_ep.south) -- (des.north);
-        \draw[->] (ser.north) -- ([xshift=\sbioff] sbi_ep.south);
-        \draw[->] (des.south) -- ([xshift=-\sbioff] sbi_hand.north);
-        \draw[->] ([xshift=\sbioff] sbi_hand.north) -- (ser.south);
+        \draw[->] (des.north|-sbi_ep.south) -- (des.north);
+        \draw[->] (ser.north) -- (ser.north|-sbi_ep.south);
+        \draw[->] (des.south) -- (des.south|-sbi_hand.north);
+        \draw[->] (ser.south|-sbi_hand.north) -- (ser.south);
         \draw[->] ([xshift=-\soff] sbi_hand.south) -- ([xshift=-\soff] flow.north);
         \draw[->] ([xshift=\soff] flow.north) -- ([xshift=\soff] sbi_hand.south);
         % Producer
         \draw[->] ([xshift=-\soff] flow.south) -- ([xshift=-\soff] producer_nf.north);
         \draw[->] ([xshift=\soff] producer_nf.north) -- ([xshift=\soff] flow.south);
         % PFCP
-        \def\poff{1.3em}
-        \def\pepoff{5.2em}
-        \draw[->] (pfcp_hand.east) -- ([yshift=\poff] flow.west);
-        \draw[->] ([yshift=-\poff] flow.west) -- (pfcp_build.east);
+        \draw[->] (pfcp_hand.east) -- (flow.west|-pfcp_hand.east);
+        \draw[->] (flow.west|-pfcp_build.east) -- (pfcp_build.east);
         \draw[->] (pfcp_disp) -- (pfcp_hand);
         \draw[->] (pfcp_build) -- (pfcp_enc);
         \draw[->] (pfcp_dec) -- (pfcp_disp);
-        \draw[->] (pfcp_enc.south) -- ([xshift=\pepoff]pfcp_ep.north);
-        \draw[->] ([xshift=-\pepoff] pfcp_ep.north) -- (pfcp_dec.south);
+        \draw[->] (pfcp_enc.south) -- (pfcp_enc.south|-pfcp_ep.north);
+        \draw[->] (pfcp_dec.south|-pfcp_ep.north) -- (pfcp_dec.south);
         \draw[->] ([xshift=-\soff] pfcp_ep.south) -- ([xshift=-\soff] upf.north);
         \draw[->] ([xshift=\soff] upf.north) -- ([xshift=\soff] pfcp_ep.south);
     \end{tikzpicture}
@@ -102,6 +103,8 @@ PFCP~\cite{3gpp.29.244} 是 SMF 獨有的協議，不存在於除 SMF 與 UPF �
 
 \begin{figure}[htbp]
     \centering
+    \pgfdeclarelayer{background}
+    \pgfsetlayers{background,main}
     \begin{tikzpicture}
         \def\w{15em}
         \def\uh{9em}
@@ -128,7 +131,9 @@ PFCP~\cite{3gpp.29.244} 是 SMF 獨有的協議，不存在於除 SMF 與 UPF �
         \node[right=of up_udp_sock,xshift=-1em,align=center] (n39) {N3\\N9};
         \node[right=of up_vir_tun,xshift=-1em] (n6) {N6};
         %
-        \node[box,fit=(pfcp_hand) (updk) (gtp5g) (cp_udp_sock) (disp)] (upf) {};
+        \begin{pgfonlayer}{background}
+            \node[box,fit=(pfcp_hand) (updk) (gtp5g) (cp_udp_sock) (disp),fill=white] (upf) {};
+        \end{pgfonlayer}
         %
         \tikzstyle{flow}  = [font=\scriptsize,align=center]
         % CP
@@ -458,8 +463,9 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 \begin{figure}[htbp]
     \centering
     \pgfdeclarelayer{background}
-    \pgfsetlayers{background,main}
-    \begin{tikzpicture}
+    \pgfdeclarelayer{bbg}
+    \pgfsetlayers{bbg,background,main}
+    \begin{tikzpicture}n
         \tikzstyle{nf} = [draw,align=center,minimum width=6em,minimum height=4em,fill=white]
         \tikzstyle{ring} = [draw,fill=gray,circle,scale=0.6]
         \node[rectangle split,rectangle split parts=2,rectangle split draw splits=true,nf] (amf) {AMF\\ \nodepart{two} cGO Shim};
@@ -506,7 +512,9 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
             \node[draw,fit=(amf) (smf) (upfc) (upfu) (amf_rx) (upfu_tx),yshift=-3.5em,align=left,fill=lightgray] (sm) {\\[3em] Shared Memory};
         \end{pgfonlayer}
         %
-        \node[rectangle,draw,fit=(nic) (sm) (amf) (smf) (upfc) (upfu),yshift=0.35em,align=left] (onvm) {\\[9em] OpenNetVM};
+        \begin{pgfonlayer}{bbg}
+            \node[rectangle,draw,fit=(nic) (sm) (amf) (smf) (upfc) (upfu),yshift=0.35em,align=left,fill=white] (onvm) {\\[9em] OpenNetVM};
+        \end{pgfonlayer}
     \end{tikzpicture}
     \caption[\LHCN NF 架構]{{\footnotesize \LHCN NF 架構}}
     \label{fig:onvm_nf_arch}
@@ -519,22 +527,10 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 
 如圖\ref{fig:onvm_nf_arch}，當 SMF 向 UPF 發起控制訊號時，會透過 PFCP 協定傳送至 UPF-C，由於 \LHCN 是透過共享記憶體作相同節點跨 NF 的溝通，我們沿用的 PFCP 的封裝格式但捨棄其底層 UDP 的傳輸協議，而是直接將封包放置於記憶體上提供互相存取以提升溝通效率。當 UPF-C 收到 PFCP 訊息後，會根據 TLV 格式將 PFCP 解碼，並小心的將內部資訊翻譯後放置於 UPF-C 與 UPF-U 可共同存取的地方。如圖~\ref{fig:onvm_nf_arch} 與圖~\ref{fig:onvm_upf_flow} 所示，UPF 會將上行 (UL) 與下行 (DL) 的規則分開儲存，各自維護一個 User Session 表格，在 User Session 表格內會存有各自的 Session Context，而這些上下文又會透過 TSS 資料結構儲存各種 session 內的規則用以接下來的規則查詢。
 
-當用戶端封包進入到 \LHCN 系統時，OpenNetVM 的 NF Manager 會協助將封包送進 UPF-U 進行用戶端封包處理。由於 UPF-C 與 UPF-U 透過共享記憶體的方式共用 Session Context，於 SMF 送至 UPF-C 的資訊 UPF-U 可直接查詢，因此當封包進入時，UPF-U 無需另外與 UPF-C 溝通便可進行以下動作查找相應的規則並予以應用 (見圖~\ref{fig:onvm_upf_flow})：
-
-\begin{enumerate}
-\item UL/DL 流向偵測：UPF-C 會透過封包的目標 IP 決定其網路流向。
-\item User Session 查找：對於 UL 封包，UPF-C 會透過 TEID 查詢相對應的 User Session，反之對於 DL 封包，UPF-C 會利用目標 IP 屬於那一個 UE 的決定其所屬 User Session。
-\item PDR 搜尋：由於 User Session 內會存有一個或多個 PDR 規則，UPF-U 會透過 TSS 算法快速搜尋出封包所屬的 PDR，而當找到對應 PDR 後，便可連結出 PDR 所連結的其他規則 (例如 FAR、QER、BAR、URR)。
-\item 執行規則：在收集到所有規則狀態後，UPF-U 會負責以符合這些規則的方式處理此封包。
-\end{enumerate}
-
-另外為了 Paging 或 Handover 等流程需要，UPF-U 內部也有實作封包緩衝 (buffer) 的機制。我們設計將緩衝空間根據 UE Session 個別存放於 UPF-U 的記憶體空間內，當封包從 NF 的 receive ring 送入 UPF-U 時，若查找出的規則內有 buffer 這個應用規則 (apply action，存在於 FAR 內)，UPF-U 會將封包存入所屬 UE Session 的緩衝內，反之若是其它規則，則 UPF 會將規則包裝進 packet descriptor 的元資料內並送入 transmit ring 中處理。
-
-當 SMF 更新規則把 buffer 改成其他諸如 forward 或 drop 的規則後，會再度把封包從緩衝取出並包入相對應規則的 packet descriptor，而後送入 transmit ring 之中處理。另外值得注意的是，為了保證送出的封包順序正確，在儲存進緩衝時需要按照順序儲存。
-
-
 \begin{figure}[htbp]
     \centering
+    \pgfdeclarelayer{background}
+    \pgfsetlayers{background,main}
     \begin{tikzpicture}
         \tikzstyle{table} = [rectangle split,rectangle split parts=4,rectangle split part align={center},draw,font={\tiny},fill=white]
         \node[rounded corners,draw] (detector) {UL/DL Detection};
@@ -585,7 +581,23 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
         \draw[-latex] (ul_pdr_3.three east) to[out=0, in=180] (match_pdr);
         \node[draw,fit=(fars) (qers) (bars) (urrs),dotted] (rules) {};
         \draw[-latex] (match_pdr) -- (rules);
+        \begin{pgfonlayer}{background}
+            \node[fit=(detector) (ul_sess_tab) (dl_sess_tab) (rules) (match_pdr) (sess_look) (sess_1),fill=white] (bg) {};
+        \end{pgfonlayer}
     \end{tikzpicture}
     \caption[\LHCN UPF 流程]{{\footnotesize \LHCN UPF 流程}}
     \label{fig:onvm_upf_flow}
 \end{figure}
+
+當用戶端封包進入到 \LHCN 系統時，OpenNetVM 的 NF Manager 會協助將封包送進 UPF-U 進行用戶端封包處理。由於 UPF-C 與 UPF-U 透過共享記憶體的方式共用 Session Context，於 SMF 送至 UPF-C 的資訊 UPF-U 可直接查詢，因此當封包進入時，UPF-U 無需另外與 UPF-C 溝通便可進行以下動作查找相應的規則並予以應用 (見圖~\ref{fig:onvm_upf_flow})：
+
+\begin{enumerate}
+\item UL/DL 流向偵測：UPF-C 會透過封包的目標 IP 決定其網路流向。
+\item User Session 查找：對於 UL 封包，UPF-C 會透過 TEID 查詢相對應的 User Session，反之對於 DL 封包，UPF-C 會利用目標 IP 屬於那一個 UE 的決定其所屬 User Session。
+\item PDR 搜尋：由於 User Session 內會存有一個或多個 PDR 規則，UPF-U 會透過 TSS 算法快速搜尋出封包所屬的 PDR，而當找到對應 PDR 後，便可連結出 PDR 所連結的其他規則 (例如 FAR、QER、BAR、URR)。
+\item 執行規則：在收集到所有規則狀態後，UPF-U 會負責以符合這些規則的方式處理此封包。
+\end{enumerate}
+
+另外為了 Paging 或 Handover 等流程需要，UPF-U 內部也有實作封包緩衝 (buffer) 的機制。我們設計將緩衝空間根據 UE Session 個別存放於 UPF-U 的記憶體空間內，當封包從 NF 的 receive ring 送入 UPF-U 時，若查找出的規則內有 buffer 這個應用規則 (apply action，存在於 FAR 內)，UPF-U 會將封包存入所屬 UE Session 的緩衝內，反之若是其它規則，則 UPF 會將規則包裝進 packet descriptor 的元資料內並送入 transmit ring 中處理。
+
+當 SMF 更新規則把 buffer 改成其他諸如 forward 或 drop 的規則後，會再度把封包從緩衝取出並包入相對應規則的 packet descriptor，而後送入 transmit ring 之中處理。另外值得注意的是，為了保證送出的封包順序正確，在儲存進緩衝時需要按照順序儲存。

@@ -71,6 +71,8 @@
 
 \begin{figure}[htbp]
     \centering
+    \pgfdeclarelayer{background}
+    \pgfsetlayers{background,main}
     \begin{tikzpicture}
         % node 2
         \tikzstyle{base} = [draw,anchor=south,align=center]
@@ -108,12 +110,15 @@
         \node[base,fit=(ranue-up) (node1str)] (node1) {};
         \node[base,densely dotted,fit=(ranue-cp) (ranue-up),label={north:\scriptsize RAN/UE}] (ranue) {};
         \draw[<->] (upfu.west) -- (ranue-up.east|-upfu);
-        \draw[densely dashed] (ranue-cp) -- (ranue-up);
+        \draw[->,densely dashed] (ranue-cp) -- (ranue-up);
         % node 3
         \node[base] (dn) at (10.8,1) {Data Network\\ \scriptsize (MoonGen)};
         \node(node3str) at (dn|-strtop) {Node 3};
         \node[base,fit=(dn) (node3str)] (node3) {};
         \draw[<->] (upfu.east) -- (dn.west|-upfu);
+        \begin{pgfonlayer}{background}
+            \node[fit=(node1) (node2) (node3),fill=white] (bg) {};
+        \end{pgfonlayer}
     \end{tikzpicture}
     \caption[實驗環境節點]{{\footnotesize 實驗環境節點}}
     \label{fig:eva_node}
