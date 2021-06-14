@@ -477,10 +477,12 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
         %
         \tikzstyle{thread} = [rounded corners,align=center,draw,font={\scriptsize}]
         \node[thread] (tx_thread) at ($(smf_tx)!0.5!(upfc_rx) + (0,-1.3)$) {TX\\Thread};
-        \node[rectangle,draw,right=of tx_thread,align=center,font={\tiny},xshift=-2em,double,minimum width=4em] (rules) {Packet\\Pool};
+        \node[rectangle,draw,right=of tx_thread,align=center,font={\tiny},xshift=-2em,double,minimum width=3em] (rules) {Packet\\Pool};
         \node[thread] (rx_thread) at ($(upfu_rx) + (0,-1.3)$) {RX\\Thread};
-        \node[rectangle,draw,right=of rx_thread,align=center,font={\tiny},xshift=-2em,double] (rules) {Rules\\Table};
+        \node[rectangle,draw,left=of rx_thread,align=center,font={\tiny},xshift=2em,double] (rules) {Rules\\Table};
         \node[below=of rx_thread,yshift=1em,rectangle,draw] (nic) {NIC};
+        \draw[dotted] (rules) -- (upfc.south) node[pos=0.7] {\tiny shared};
+        \draw[dotted] (rules) -- (upfu.south) node[pos=0.7] {\tiny shared};
         %
         \def\ringshift{15}
         \draw[->] ([xshift=-\ringshift] amf_rx) |- (amf);
@@ -515,11 +517,9 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 
 在用戶端的開發上有別於 free5GC 使用 gtp5g 這個 kernel module 開發，\LHCN 提供了一個使用者空間核心旁路的 UPF。雖然使用 gtp5g 可以重複使用核心提供的網路疊，且會在核心空間直接進行用戶封包的封裝或解封，可以避免重複複製到使用者空間，但還是會遇到章節~\ref{sec:challenge}所提到效能損耗，另外藉由核心開發的封包處理會需要透過中斷呼叫來溝通\cite{interrupt_process}與重複記憶體複製等效能瓶頸，而 UPF 又是核心網路中用戶端唯一且最重要的 NF，因此我們認為更應該對其作效能上的加速。相對於高度核心依賴的 gtp5g-UPF，我們著重發展於軟體虛擬化的 UPF 功能，將 UPF 拆成兩個子部件：UPF-C 與 UPF-U，UPF-C 負責控制訊號的接收處理，而 UPF-U 則負責對用戶封包進行規則查找與轉發，這兩個子部件分別會以不同的 OpenNetVM NF 包覆。
 
-如圖\ref{fig:onvm_nf_arch}，當 SMF 向 UPF 發起控制訊號時，會透過 PFCP 協定傳送至 UPF-C，由於 \LHCN 是透過共享記憶體作相同節點跨 NF 的溝通，我們沿用的 PFCP 的封裝格式但捨棄其底層 UDP 的傳輸協議，而是直接將封包放置於記憶體上提供互相存取以提升溝通效率。當 UPF-C 收到 PFCP 訊息後，會根據 TLV 格式將 PFCP 解碼，並小心的將內部資訊翻譯後放置於 UPF-C 與 UPF-U 可共同存取的地方。如圖\ref{fig:onvm_upf_arch}所示，UPF 會將上行 (UL) 與下行 (DL) 的規則分開儲存，各自維護一個 User Session 表格，在 User Session 表格內會存有各自的 Session Context，而這些上下文又會透過 TSS 資料結構儲存各種 session 內的規則用以接下來的規則查詢。
+如圖\ref{fig:onvm_nf_arch}，當 SMF 向 UPF 發起控制訊號時，會透過 PFCP 協定傳送至 UPF-C，由於 \LHCN 是透過共享記憶體作相同節點跨 NF 的溝通，我們沿用的 PFCP 的封裝格式但捨棄其底層 UDP 的傳輸協議，而是直接將封包放置於記憶體上提供互相存取以提升溝通效率。當 UPF-C 收到 PFCP 訊息後，會根據 TLV 格式將 PFCP 解碼，並小心的將內部資訊翻譯後放置於 UPF-C 與 UPF-U 可共同存取的地方。如圖~\ref{fig:onvm_nf_arch} 與圖~\ref{fig:onvm_upf_flow} 所示，UPF 會將上行 (UL) 與下行 (DL) 的規則分開儲存，各自維護一個 User Session 表格，在 User Session 表格內會存有各自的 Session Context，而這些上下文又會透過 TSS 資料結構儲存各種 session 內的規則用以接下來的規則查詢。
 
-\cnote{畫 fig:onvm\_upf\_arch}
-
-當用戶端封包進入到 \LHCN 系統時，OpenNetVM 的 NF Manager 會協助將封包送進 UPF-U 進行用戶端封包處理。由於 UPF-C 與 UPF-U 透過共享記憶體共用 Session Context，於 SMF 送至 UPF-C 的資訊 UPF-U 便可直接查詢，因此當封包進入時，UPF-U 無需另外與 UPF-C 溝通便可進行以下動作：
+當用戶端封包進入到 \LHCN 系統時，OpenNetVM 的 NF Manager 會協助將封包送進 UPF-U 進行用戶端封包處理。由於 UPF-C 與 UPF-U 透過共享記憶體的方式共用 Session Context，於 SMF 送至 UPF-C 的資訊 UPF-U 可直接查詢，因此當封包進入時，UPF-U 無需另外與 UPF-C 溝通便可進行以下動作查找相應的規則並予以應用 (見圖~\ref{fig:onvm_upf_flow})：
 
 \begin{enumerate}
 \item UL/DL 流向偵測：UPF-C 會透過封包的目標 IP 決定其網路流向。
@@ -531,3 +531,61 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 另外為了 Paging 或 Handover 等流程需要，UPF-U 內部也有實作封包緩衝 (buffer) 的機制。我們設計將緩衝空間根據 UE Session 個別存放於 UPF-U 的記憶體空間內，當封包從 NF 的 receive ring 送入 UPF-U 時，若查找出的規則內有 buffer 這個應用規則 (apply action，存在於 FAR 內)，UPF-U 會將封包存入所屬 UE Session 的緩衝內，反之若是其它規則，則 UPF 會將規則包裝進 packet descriptor 的元資料內並送入 transmit ring 中處理。
 
 當 SMF 更新規則把 buffer 改成其他諸如 forward 或 drop 的規則後，會再度把封包從緩衝取出並包入相對應規則的 packet descriptor，而後送入 transmit ring 之中處理。另外值得注意的是，為了保證送出的封包順序正確，在儲存進緩衝時需要按照順序儲存。
+
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}
+        \tikzstyle{table} = [rectangle split,rectangle split parts=4,rectangle split part align={center},draw,font={\tiny},fill=white]
+        \node[rounded corners,draw] (detector) {UL/DL Detection};
+        \node[table,above=of detector] (ul_sess_tab) {
+            \textbf{User Session Table (UL)}
+            \nodepart{two}   TEID 1\hspace*{4ex} Session 1
+            \nodepart{three} TEID 5\hspace*{4ex} Session 2
+            \nodepart{four}  \ldots};
+        \draw (ul_sess_tab.text split) -- (ul_sess_tab.three split);
+        \node[table,below=of detector] (dl_sess_tab) {
+            \textbf{User Session Table (DL)}
+            \nodepart{two}   60.60.0.1\hspace*{4ex} Session 3
+            \nodepart{three} 60.60.0.2\hspace*{4ex} Session 4
+            \nodepart{four}  \ldots};
+        \draw (dl_sess_tab.text split) -- (dl_sess_tab.three split);
+        \node[above=of ul_sess_tab,yshift=-1.55em] (sess_look) {User Session lookup};
+        \draw[-latex] (detector) -- (ul_sess_tab);
+        \draw[-latex] (detector) -- (dl_sess_tab);
+        \node[table,right=of ul_sess_tab,xshift=3em,yshift=-2em] (ul_pdr_1) {
+            \textbf{PDR Sub-table 3}
+            \nodepart{two}   Key 1\hspace*{4ex} PDR 1
+            \nodepart{three} Key 2\hspace*{4ex} PDR 2
+            \nodepart{four}  \ldots};
+        \draw (ul_pdr_1.text split) -- (ul_pdr_1.three split);
+        \node[table] (ul_pdr_2) at ($(ul_pdr_1)+(-0.2,0.2)$) {
+            \textbf{PDR Sub-table 2}
+            \nodepart{two}   Key 1\hspace*{4ex} PDR 1
+            \nodepart{three} Key 2\hspace*{4ex} PDR 2
+            \nodepart{four}  \ldots};
+        \draw (ul_pdr_2.text split) -- (ul_pdr_2.three split);
+        \node[table] (ul_pdr_3) at ($(ul_pdr_2)+(-0.2,0.2)$) {
+            \textbf{PDR Sub-table 1}
+            \nodepart{two}   Key 1\hspace*{4ex} PDR 1
+            \nodepart{three} Key 2\hspace*{4ex} PDR 2
+            \nodepart{four}  \ldots};
+        \draw (ul_pdr_3.text split) -- (ul_pdr_3.three split);
+        \node[draw,fit=(ul_pdr_1) (ul_pdr_3),font=\scriptsize,text depth=5.5em,text height=0.2em,text width=7em,yshift=0.3em] (sess_1) {Session 1's tuple space};
+        \node[above=of sess_1,yshift=-1.5em] (pdr_look) {PDR lookup (TSS)};
+        \path (sess_1) -- ($(sess_1)+(0,-4.5)$) node[font=\Huge, midway, sloped] {$\dots\dots$};
+        \draw[-latex] (ul_sess_tab.two east) to [out=0, in=180] (ul_pdr_3.three west);
+        \draw[-latex] (dl_sess_tab.two east) -- ++(1.7,0);
+        \node[right=of sess_1,draw] (match_pdr) {Matched PDR};
+        \node[above=of match_pdr,yshift=1em,align=center,yshift=-1.05em] () {Apply rules in\\matched PDR};
+        \node[draw] (fars) at ($(match_pdr)+(0,-1.5)$) {FARs};
+        \node[draw] (qers) at ($(fars)+(0,-1)$) {QERs};
+        \node[draw] (bars) at ($(qers)+(0,-1)$) {BARs};
+        \node[draw] (urrs) at ($(bars)+(0,-1)$) {URRs};
+        \draw[-latex] (ul_pdr_3.three east) to[out=0, in=180] (match_pdr);
+        \node[draw,fit=(fars) (qers) (bars) (urrs),dotted] (rules) {};
+        \draw[-latex] (match_pdr) -- (rules);
+    \end{tikzpicture}
+    \caption[\LHCN UPF 流程]{{\footnotesize \LHCN UPF 流程}}
+    \label{fig:onvm_upf_flow}
+\end{figure}
