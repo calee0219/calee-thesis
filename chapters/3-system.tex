@@ -448,36 +448,67 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 
 又因為 OpenNetVM 是使用 Service ID 來決定封包目的地應該傳送至那一個 Network Function，而非使用傳統的 IP 來做 routing，因此我們也對應設計了 ipid.yaml 的檔案預先定義 IP 與 Service ID 的對應關係。透過這樣的設計，函式呼叫者 (caller) 可以直接沿用傳統 TCP 或 UDP 的呼叫，進入 onvmNet 函式之後才會透過此 ipid.yaml 檔案映射到相對應的 Service ID。
 
-在方法 (method) 的設計上，因為我們需要繼承 \lstinline[language=Go]{net.Conn} 這個 interface，因此我們實作了此 interface 所有提供之 method，讓使用者得以直接呼叫。
+在方法 (method) 的設計上，因為我們需要繼承 \lstinline[language=Go]{net.Conn} 這個 Interface，因此我們實作了此 Interface 所有提供之方法，讓使用者得以直接呼叫。
 
-另外在設計封包收取 (ReceiveFrom) 時，需要判斷此封包屬於那一個連線 (connection) 的，因此我們設計了 \lstinline{channelMap}，每個連線在聽到 (listen) 連線時會開出一個對應的 channel 並放入 channelMap，當處理者 (handler) 收到 OpenNetVM 給予的封包後，透過 HashMap 的方式以 $O(1)$ 的速度搜尋出相對應的 channel，再將封包送入 channel 得以送到正確的連線中。
+另外在設計封包收取 (\lstinline[language=Go]{ReceiveFrom}) 時，需要判斷此封包屬於那一個連線 (connection) 的，因此我們設計了 \lstinline{channelMap}，每個連線在聽到 (listen) 連線時會開出一個對應的 channel 並放入 channelMap，當處理者 (handler) 收到 OpenNetVM 給予的封包後，透過 HashMap 的方式以 $O(1)$ 的速度搜尋出相對應的 channel，再將封包送入 channel 得以送到正確的連線中。
 
-設計完 onvmNet 函式庫後，之需將 free5GC 內部 PFCP 函式庫內有呼叫到 \lstinline[language=Go]{net.UDPConn} 的部分改成呼叫 \lstinline[language=Go]{onvmNet.ONVMConn}。另外由於 free5GC 是透過 go module 來維護套件，因此還需跟新 go.mod 之內容。而若有其他 Golang 專案想要嘗試使用 OpenNetVM 平臺，僅需作相同的取代，即可快速移植 (見圖~\ref{fig:free5gc_smf_arch})。
+設計完 onvmNet 函式庫後，之需將 free5GC 內部 PFCP 函式庫內有呼叫到 \lstinline[language=Go]{net.UDPConn} 的部分改成呼叫 \lstinline[language=Go]{onvmNet.ONVMConn}。另外由於 free5GC 是透過 go module 來維護套件，因此還需跟新 go.mod 之內容。而若有其他 Golang 專案想要嘗試使用 OpenNetVM 平臺，僅需作相同的取代，即可快速移植 (見圖~\ref{fig:onvm_smf_arch})。
 
-% ONVM SMF 總架構圖
-\cnote{補整體架構圖 ($L^25GC$ Fig. 6) fig:onvm\_nf\_arch}
-\begin{comment}
-    \begin{figure}[htbp]
-        \centering
-        \begin{tikzpicture}
-            \draw[step=1em,gray,very thin] (-6,-6) grid (6,6);
-            \filldraw[black] (0,0) circle (2pt) node[anchor=west] {};
-
-            \tikzset{
-                component/.style={rectangle,draw=blue!60,fill=blue!5,thin,minimum width=7em},
-                endpoint/.style={rectangle,draw=red!60,fill=red!5,thin,minimum width=15em},
-                nf/.style={rectangle,draw=green!60,fill=green!5,thin},
-            };
-            \node[nf] (upf) {UPF};
-            \node[endpoint] (pfcp_ep) [above of=upf] {PFCP EndPoint};
-            \node[component] (pfcp_de) [above of=pfcp_ep] {PFCP Decoder};
-            \node[component] (pfcp_en) [above of=pfcp_ep,right of=pfcp_ep,xshift=2.5cm] {PFCP Encoder};
-            \node[component] (pfcp_b) [above of=pfcp_en] {PFCP Builder};
-            \node[component] (pfcp_han) [above of=pfcp_b,xshift=2.5cm] {PFCP Handler};
-            \node[component] (pfcp_dis) [right of=pfcp_han,xshift=-2.5cm] {PFCP Dispatcher};
-        \end{tikzpicture}
-    \end{figure}
-\end{comment}
+% ONVM NF 總架構圖
+\begin{figure}[htbp]
+    \centering
+    \pgfdeclarelayer{background}
+    \pgfsetlayers{background,main}
+    \begin{tikzpicture}
+        \tikzstyle{nf} = [draw,align=center,minimum width=6em,minimum height=4em,fill=white]
+        \tikzstyle{ring} = [draw,fill=gray,circle,scale=0.6]
+        \node[rectangle split,rectangle split parts=2,rectangle split draw splits=true,nf] (amf) {AMF\\ \nodepart{two} cGO Shim};
+        \node[right=of amf,rectangle split,rectangle split parts=2,rectangle split draw splits=true,nf] (smf) {SMF\\ \nodepart{two} cGO Shim};
+        \node[right=of smf,rectangle,nf] (upfc) {UPF-C\\\\ };
+        \node[right=of upfc,rectangle,nf] (upfu) {UPF-U\\\\ };
+        \node[ring] (amf_rx) at (amf.south west) {Rx};
+        \node[ring] (amf_tx) at (amf.south east) {Tx};
+        \node[ring] (smf_rx) at (smf.south west) {Rx};
+        \node[ring] (smf_tx) at (smf.south east) {Tx};
+        \node[ring] (upfc_rx) at (upfc.south west) {Rx};
+        \node[ring] (upfc_tx) at (upfc.south east) {Tx};
+        \node[ring] (upfu_rx) at (upfu.south west) {Rx};
+        \node[ring] (upfu_tx) at (upfu.south east) {Tx};
+        %
+        \tikzstyle{thread} = [rounded corners,align=center,draw,font={\scriptsize}]
+        \node[thread] (tx_thread) at ($(smf_tx)!0.5!(upfc_rx) + (0,-1.3)$) {TX\\Thread};
+        \node[rectangle,draw,right=of tx_thread,align=center,font={\tiny},xshift=-2em,double,minimum width=4em] (rules) {Packet\\Pool};
+        \node[thread] (rx_thread) at ($(upfu_rx) + (0,-1.3)$) {RX\\Thread};
+        \node[rectangle,draw,right=of rx_thread,align=center,font={\tiny},xshift=-2em,double] (rules) {Rules\\Table};
+        \node[below=of rx_thread,yshift=1em,rectangle,draw] (nic) {NIC};
+        %
+        \def\ringshift{15}
+        \draw[->] ([xshift=-\ringshift] amf_rx) |- (amf);
+        \draw[->] (amf) -| ([xshift=\ringshift] amf_tx);
+        \draw[->] ([xshift=-\ringshift] smf_rx) |- (smf);
+        \draw[->] (smf) -| ([xshift=\ringshift] smf_tx);
+        \draw[->] ([xshift=-\ringshift] upfc_rx) |- (upfc);
+        \draw[->] (upfc) -| ([xshift=\ringshift] upfc_tx);
+        \draw[->] ([xshift=-\ringshift] upfu_rx) |- (upfu);
+        \draw[->] (upfu) -| ([xshift=\ringshift] upfu_tx);
+        \draw[-latex] (amf_tx) |- ([yshift=-1em] tx_thread);
+        \draw[-latex] ([yshift=1em] tx_thread) -| (smf_rx);
+        \draw[-latex] (smf_tx) -- (tx_thread);
+        \draw[-latex] (tx_thread) -- (upfc_rx);
+        \draw[-latex] (upfu_tx) -- ++(0,-0.7) -- ++(-6,0) -- (tx_thread.north east);
+        \draw[-latex] ([yshift=-1em] tx_thread) |- (nic);
+        \draw[-latex] (rx_thread) -- (upfu_rx);
+        \draw[-latex] (nic) -- (rx_thread);
+        %
+        \begin{pgfonlayer}{background}
+            \node[draw,fit=(amf) (smf) (upfc) (upfu) (amf_rx) (upfu_tx),yshift=-3.5em,align=left,fill=lightgray] (sm) {\\[3em] Shared Memory};
+        \end{pgfonlayer}
+        %
+        \node[rectangle,draw,fit=(nic) (sm) (amf) (smf) (upfc) (upfu),yshift=0.35em,align=left] (onvm) {\\[9em] OpenNetVM};
+    \end{tikzpicture}
+    \caption[\LHCN NF 架構]{{\footnotesize \LHCN NF 架構}}
+    \label{fig:onvm_nf_arch}
+\end{figure}
 
 \section{UPF 開發細節}
 \label{sec:upf_porting}
