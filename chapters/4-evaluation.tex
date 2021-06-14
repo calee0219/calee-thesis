@@ -1,6 +1,7 @@
 \chapter{實驗與效能評估}
 \label{chapter:evaluation}
 
+
 % https://hackmd.io/@calee/HkNQc2ByO/https%3A%2F%2Fhackmd.io%2FyR2SvjqNQayQeWL2onkvmg
 % https://docs.google.com/spreadsheets/d/11vgvawzM0E8TF6rnjfOtI_Z4iHDMS9jvwvSfVkNA-jU
 
@@ -68,22 +69,52 @@
 
 因此在務實面 (physically) 上將系統切分成三個節點，分別模擬使用者端流量發送、基地臺與核網處理、資料網路回覆 (圖~\ref{fig:eva_node})，在節點與節點中我們都是使用 Intel 的 10Gbps 雙孔網卡與 CAT-6A RJ45 網路線連接。在 Node 1 上面我們使用 MoonGen~\cite{paper.MoonGen} 軟體來產生流量。在 Node 2 上面我們分別佈署原生的 free5GC v3.0.4 與修改過後的 \LHCN 作為核心網路測試，另外比較特別的是，我們也把自行開發的 RAN UE 模擬器佈署在 Node 2 上面而非 Node 1 上，此模擬器會模擬 5G SA 的控制訊號與核心網路建立連線。而在 Node 3 上主要模擬資料網路回復封包，但若是測試單純下行流量，則會在 Node 3 上啟動 MoonGen 來產生流量。
 
-\cnote{改圖}
 \begin{figure}[htbp]
     \centering
     \begin{tikzpicture}
-        \tikzset{vertex/.style = {shape=rectangle,draw,minimum size=1.5em,align=center}}
-        \tikzset{edge/.style = {<->,> = latex'}}
-        % vertices
-        \node[vertex] (a) at (10,) {Node 1\\Traffic Generator};
-        \node[vertex] (b) at (15,) {Node 2\\Core Network};
-        \node[vertex] (c) at (20,) {Node 3\\Data Network};
-        %edges
-        \draw[edge] (a) to (b);
-        \draw[edge] (b) to (c);
+        % node 2
+        \tikzstyle{base} = [draw,anchor=south,align=center]
+        \tikzstyle{nf} = [base,minimum width=3.6em]
+        \node (strtop) at (0,5) {};
+        \node (sbia) at (0,3.78) {};
+        \node (sbib) at (9,3.78) {};
+        \draw (sbia) -- (sbib);
+        \node[nf] (nrf)  at (1,4) {NRF};
+        \node[nf] (amf)  at (2,3) {AMF};
+        \node[nf] (ausf) at (3,4) {AUSF};
+        \node[nf] (smf)  at (4,3) {SMF};
+        \node[nf] (nssf) at (5,4) {NSSF};
+        \node[nf] (pcf)  at (6,3) {PCF};
+        \node[nf] (udm)  at (7,4) {UDM};
+        \node[nf] (udr)  at (8,3) {UDR};
+        \node[nf] (upfc) at (4,1.57) {UPF-C};
+        \node[nf] (upfu) at (4,1) {UPF-U};
+        \draw ($(sbia)!(amf)!(sbib)$)  -- (amf);
+        \draw ($(sbia)!(ausf)!(sbib)$) -- (ausf);
+        \draw ($(sbia)!(nrf)!(sbib)$)  -- (nrf);
+        \draw ($(sbia)!(nssf)!(sbib)$) -- (nssf);
+        \draw ($(sbia)!(pcf)!(sbib)$)  -- (pcf);
+        \draw ($(sbia)!(smf)!(sbib)$)  -- (smf);
+        \draw ($(sbia)!(udm)!(sbib)$)  -- (udm);
+        \draw ($(sbia)!(udr)!(sbib)$)  -- (udr);
+        \draw (smf) -- (upfc);
+        \node (node2str) at (upfc|-strtop) {Node 2};
+        \node[base,font=\tiny] (ranue-cp) at (1.2,1.7) {RAN/UE (CP)\\(simulator)};
+        \draw (amf) -- (ranue-cp);
+        \node[fit=(upfu) (nrf) (udr) (node2str),draw] (node2) {};
+        % node 1
+        \node[base] (ranue-up) at (-1.8,1) {RAN/UE (UP)\\ \scriptsize (MoonGen)};
+        \node (node1str) at (ranue-up|-strtop) {Node 1};
+        \node[base,fit=(ranue-up) (node1str)] (node1) {};
+        \node[base,densely dotted,fit=(ranue-cp) (ranue-up),label={north:\scriptsize RAN/UE}] (ranue) {};
+        \draw[<->] (upfu.west) -- (ranue-up.east|-upfu);
+        \draw[densely dashed] (ranue-cp) -- (ranue-up);
+        % node 3
+        \node[base] (dn) at (10.8,1) {Data Network\\ \scriptsize (MoonGen)};
+        \node(node3str) at (dn|-strtop) {Node 3};
+        \node[base,fit=(dn) (node3str)] (node3) {};
+        \draw[<->] (upfu.east) -- (dn.west|-upfu);
     \end{tikzpicture}
-    % [] 放的是顯示在 list of figure 的文字
-    % {} 放的是顯示在圖下方的文字
     \caption[實驗環境節點]{{\footnotesize 實驗環境節點}}
     \label{fig:eva_node}
 \end{figure}
