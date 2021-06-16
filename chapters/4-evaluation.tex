@@ -159,7 +159,7 @@
     \label{fig:up_uldl_comp}
 \end{figure}
 
-圖~\ref{fig:up_uldl_comp}在固定 CPU 時脈於 3000 MHz 並使用 68 位元組的封包，比較 \LHCN 與 free5GC 分別在 Node 1、Node 2、與 Node 3 的上下行流量，藍色長條顯示當只有測試上行時的流量，而紅、黃色長條則是在同時有上下行流量時，其各自的流量大小，縱軸為吞吐量，這裡單位取每秒處理的封包數量。可以看到當流量從 Node 1 被產生到送到 Node 2 處理時，free5GC 所能承受的封包數量足足八倍有餘，而當封包回復至 Node 1 時，\LHCN 的流量會是原本送出時的 $\dfrac{1}{3}$，而 free5GC 則會是降低成原來的 $\dfrac{1}{13}$ (比較 Node 1 紅、黃值條的差距)。
+圖~\ref{fig:up_uldl_comp}在固定 CPU 時脈於 3000 MHz 並使用 68 位元組的封包，比較 \LHCN 與 free5GC 分別在 Node 1、Node 2、與 Node 3 的上下行流量，藍色長條顯示當只有測試上行時的流量，而紅、黃色長條則是在同時有上下行流量時，其各自的流量大小，縱軸為吞吐量，這裡單位取每秒處理的封包數量。可以看到當流量從 Node 1 被產生到送到 Node 2 處理時，free5GC 所能承受的封包數量足足八倍有餘，而當封包回復至 Node 1 時，\LHCN 的流量會是原本送出時的 $\dfrac{1}{3}$，而 free5GC 則會是降低成原來的 $\dfrac{1}{13}$ (比較 Node 1 紅、黃直條的差距)。
 
 另一個有趣的觀察是於 Node 2 比較單獨上行與上下行流量分配的差異，\LHCN 在單獨上行可處理的封包量約等於同時處理上下行的封包量，而 free5GC 則是可以處理加倍的吞吐量。推測是由於受益於 Kernel Socket 的實作在同時處理上下行時可以分別使用不同的 Kernel Thread 處理，而 \LHCN 由於是透過 DPDK 實作，會搶佔單獨一個 CPU 核心進行網卡封包的輪詢，因此若需要同時處理上下行，亦會受限於單一核心的輪詢能力。
 
@@ -186,7 +186,7 @@
 \subsection{PFCP 延遲差異}
 \label{subsec:pfcp_comp}
 
-我們測試當 UE 建立連線以及換手時所會涉及到的 PFCP 訊息延遲，包含建立連線上行路徑的 Session Establishment、建立下行路徑的 Session Modification (1)、換手時改變上行路徑時的 Session Modification (2)、以及換手時改變下行路徑的 Modification (3)。由於 \LHCN 基於 OpenNetVM 平臺的 CPU 配置，只會使用到 3 個 CPU 核心，因此在 free5GC 的測試時我們也跑了兩種測試，其一是在同一系統上開啟 3 個 OpenNetVM 平臺上的無功能 NF，模擬 \LHCN 的核心使用狀況，另一個則是直接透過系統指令所著核心數，另 free5GC 只能在三個核心上執行。
+我們測試當 UE 建立連線以及換手時所會涉及到的 PFCP 訊息延遲，包含建立連線上行路徑的 Session Establishment、建立下行路徑的 Session Modification (1)、換手時改變上行路徑時的 Session Modification (2)、以及換手時改變下行路徑的 Modification (3)。由於 \LHCN 基於 OpenNetVM 平臺的 CPU 配置，只會使用到 3 個 CPU 核心，因此在 free5GC 的測試時我們也跑了兩種測試，其一是在同一系統上開啟 3 個 OpenNetVM 平臺上的無功能 NF，模擬 \LHCN 的核心使用狀況，另一個則是直接透過系統指令鎖住核心數，另 free5GC 只能在三個核心上執行。
 
 \begin{figure}[htb]
     \centering

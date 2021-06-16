@@ -19,9 +19,9 @@
 \label{sec:5g_core}
 
 % 介紹功能 CUPS、SBI、NF、NFV
-要瞭解 5G 核心網路首先要對 4G 核心網路有一些概念，在 4G 時代，核心網路主要有幾個重要的部件 (component)，Mobility Management Entity (MME)、Serving Gateway (S-GW)、PDN Gateway (P-GW)、Home Subscriber Server (HSS)、與 Policy and Charging Rules Function (PCRF) (見圖~\ref{fig:4g_core_arch}，這裡不討論其他額外功能)，MME 負責連線與移動的管理，S-GW 負責與 RAN 對接，將 LTE 的承載 (bearer) 轉換成 Internet 的形式，P-GW 負責與網際網路間接，HSS 會紀載使用者資料與幫助認證，PCRF 則是作規則與計價的管理。而隨著 4G 行動網路的發展，3GPP 會議與電信商越加越多新的功能後，發現此架構不再適用於新功能的發展，而決定對核心網路有架構性的改變，而發展出了 5G 核心網路。5G 核心網路在架構上有幾個突破性的改變，包含：
+要瞭解 5G 核心網路首先要對 4G 核心網路有一些概念，在 4G 時代，核心網路主要有幾個重要的部件 (component)，Mobility Management Entity (MME)、Serving Gateway (S-GW)、PDN Gateway (P-GW)、Home Subscriber Server (HSS)、與 Policy and Charging Rules Function (PCRF) (見圖~\ref{fig:4g_core_arch}，這裡不討論其他額外功能)，MME 負責連線與移動的管理，S-GW 負責與 RAN 對接，將 LTE 的承載 (bearer) 轉換成 Internet 的形式，P-GW 負責與網際網路間接，HSS 會記載使用者資料與幫助認證，PCRF 則是作規則與計價的管理。而隨著 4G 行動網路的發展，3GPP 會議與電信商越加越多新的功能後，發現此架構不再適用於新功能的發展，而決定對核心網路有架構性的改變，而發展出了 5G 核心網路。5G 核心網路在架構上有幾個突破性的改變，包含：
 \begin{itemize}
-\item \textbf{網路功能虛擬化 (NFV, Network Function Virtualization):} 核心網路為應印雲端 (cloud) 與微服務 (microservice) 的架構，逐漸往網路功能虛擬化方向發展，及所以功能部件皆以軟體形式呈現以方便於在標準化硬體 (commodity hardware) 上部屬，並且核心網路亦將 4G 的五大部件依據功能性，拆分為更小的單位，並以 Network Function 稱之 (以下簡稱 NF)。
+\item \textbf{網路功能虛擬化 (NFV, Network Function Virtualization):} 核心網路為因應雲端 (cloud) 與微服務 (microservice) 的架構，逐漸往網路功能虛擬化方向發展，及所以功能部件皆以軟體形式呈現以方便於在標準化硬體 (commodity hardware) 上部屬，並且核心網路亦將 4G 的五大部件依據功能性，拆分為更小的單位，並以 Network Function 稱之 (以下簡稱 NF)。
 \item \textbf{用戶端與控制端分離 (CUPS, Control and User Plane Separation):} 4G 時如 S/P-GW 同時具備用戶端功能與控制端功能，但在逐漸發展後，3GPP 認為應該將用戶端與用戶端分離，於是研議出 4.5G 時的 CUPS，將 S/P-GW 的用戶端功能拉出並以 PFCP (Packet Forwarding Control Protocol) 協定控制，而 5G 時更是把 S/P-GW 的使用者功能合併並獨立拉出成一個 NF。
 \item \textbf{服務導向架構 (SBA, Service Base Architecture):} 有鑑於 5G 將核網區分為更多小單位的 NF，如此多種不同整類的 NF 若需互相溝通，將需要開發出多種不同的界面與協定而導致開發與擴展困難，因此 3GPP 於 5G 時採用 SBA 架構，其界面統稱為 SBI (Service Base Interface)，透過制定統一的通訊格式，減少需要對每個界面開發出新協定的繁瑣，並且若需要新增界面或 NF，僅需重新使用相同格式便可輕鬆開發出新的界面或 NF。
 \item \textbf{網路切片 (Network Slice):} 由於 5G 希望提供更多的網路功能給使用者使用，如何限制功能與功能間的接觸、將相似或上下依賴的功能分群、以及將網路功能有效的擴充或縮減以有效利用資源便是以此而生的問題。而網路切片便是提供幫助網路功能的分群的服務，透過網路切片的概念，可以讓管理者以切片為單位，更方便的管理大量的網路服務。
@@ -93,7 +93,7 @@
 
 % UPF 細節
 % 介紹 GTP, PFCP, PDR, FAR
-在用戶端 5G 便比 4G 簡化許多，僅使用 UPF 作為用戶端之唯一 NF。UPF 不會自行決定規則，亦不會與基地臺或其他 UPF 溝通來作判斷，而是完全遵守 SMF 透過 N3 界面下達的規則，因此隨著連線數量漸多、穩定及延遲需求漸高，此介面的溝通效率便越發重要。N3 界面目前使用 PFCP (Packet Forwarding Control Protocol) 協定，此協定遵守 TLV 格式，亦即以 TLV 為一個單位，每個單位內部會包含三個資訊：
+在用戶端 5G 便比 4G 簡化許多，僅使用 UPF 作為用戶端之唯一 NF。UPF 不會自行決定規則，亦不會與基地臺或其他 UPF 溝通來做判斷，而是完全遵守 SMF 透過 N3 界面下達的規則，因此隨著連線數量漸多、穩定及延遲需求漸高，此介面的溝通效率便越發重要。N3 界面目前使用 PFCP (Packet Forwarding Control Protocol) 協定，此協定遵守 TLV 格式，亦即以 TLV 為一個單位，每個單位內部會包含三個資訊：
 \begin{enumerate*}
 \item 種類 (T, type)
 \item 長度 (L, length)
@@ -121,7 +121,7 @@
 
 圖~\ref{fig:up_pack_proc_flow} 顯示出了 UPF 對於封包的處理過程，當用戶端封包進入後，UPF 會從 PFCP 連線中查找出符合封包的 PDR (PDR 是 UPF 內唯一的)，當查找到符合條件的 PDR 後會從 PDR 內儲存的指定 FAR/QER/URR ID 查找相對應的 FAR/QER/URR，來決定針對這個封包相對應的轉送/服務品質/流量計算回報規則，又如果是 FAR 且規則是將封包存入緩衝區，則 FAR 內部可能儲存指定 BAR ID 以查找 BAR 並以此規則對緩衝作出處理方法。
 
-另外在核心網路內部的用戶端則是延用 4G 時期的 GTP (GPRS Tunnelling Protocol) 協定來作為封包的穿隧協議，除了 N6 界面 (UPF 與 DN 的中間界面) 外，核網內的用戶端界面包含 N3 (RAN 與 UPF) 與 N9 (UPF 與 UPF) 都是使用 GTP 協定相連。GTP 協定在封裝時會於網路層 (network layer, l3) 之下再包覆一層 GTP 標頭與新的 IP 標頭，而在有 GTP 標頭的狀況下，UPF 會透過查詢 GTP 內的 TEID 取代查詢傳統 IP 作為識別並作出相對應的轉送動作。而整個用戶端封包流程從手機到網際網路會是，封包從 UE 到 RAN 後會被 RAN 封裝成 GTP 封包並打上核網分配的 TEID，之後封包被送到 UPF，UPF 查看 TEID 透過 PDR 與 FAR 的規則查找，把 GTP 解封裝後送到 DN，完整協定疊 (protocol stack) 如圖~\ref{fig:up_proto}。
+另外在核心網路內部的用戶端則是延用 4G 時期的 GTP (GPRS Tunneling Protocol) 協定來作為封包的穿隧協議，除了 N6 界面 (UPF 與 DN 的中間界面) 外，核網內的用戶端界面包含 N3 (RAN 與 UPF) 與 N9 (UPF 與 UPF) 都是使用 GTP 協定相連。GTP 協定在封裝時會於網路層 (network layer, l3) 之下再包覆一層 GTP 標頭與新的 IP 標頭，而在有 GTP 標頭的狀況下，UPF 會透過查詢 GTP 內的 TEID 取代查詢傳統 IP 作為識別並作出相對應的轉送動作。而整個用戶端封包流程從手機到網際網路會是，封包從 UE 到 RAN 後會被 RAN 封裝成 GTP 封包並打上核網分配的 TEID，之後封包被送到 UPF，UPF 查看 TEID 透過 PDR 與 FAR 的規則查找，把 GTP 解封裝後送到 DN，完整協定疊 (protocol stack) 如圖~\ref{fig:up_proto}。
 
 \begin{figure}[htbp]
     \centering
@@ -255,7 +255,7 @@
 
 然而就目前的 5G 架構，儘管在 mm-Wave 上已經可以把延遲降低至 1ms \cite{LLmmWave}，並將頻寬提升至 10Gbps，但核心網路尚不能保證提供高流量低延遲的服務，其原因包含
 \begin{enumerate*}
-\item 多個 NF 與 SBA 的設計，由於 5G 的連線建立流程與 4G 大致相同，又將不同功能細分成不同 NF，個 NF 間的溝通勢必會增加整個流程的延遲，
+\item 多個 NF 與 SBA 的設計，由於 5G 的連線建立流程與 4G 大致相同，又將不同功能細分成不同 NF，各 NF 間的溝通勢必會增加整個流程的延遲，
 \item NFV 的架構將使控制訊號無法依賴硬體加速，反而相較於 4G 以前的硬體網路功能更為高延遲低流量，
 \item 流程保持 4G 的階段性完成，在控制端完成功能前用戶端都無法取用資源，這讓控制端大幅影響用戶端的使用效能。例如取得需要先完成註冊與連線建立流程，而此論文\cite{paper.DPCM}指出在 4G 時，光是 UE 的連線建立流程就可能會消耗 999.5ms，而在高速移動下更是需要完成多次換手 (handover) 流程，但因換手需消耗 1.9 秒\cite{paper.DPCM}，導致高速移動時的行動網路體驗將會大打折扣，
 \item 於 2023 年會有 44 億個 M2M 或 IoT 裝置連線上行動網路\cite{cisco_internet_report_2023}，如此大量的裝置勢必無法被現有的核網資源所承載。
@@ -266,7 +266,7 @@
 \begin{itemize}
 \item \textbf{挑戰 1. 控制層處理流程:} 由於 5G 核網 SBA 的架構，相較於 4G 核網，控制訊息交換的數量大量提升，這使的控制訊息的傳遞速度延遲被等倍放大，光是註冊流程在核網內就至少有超過 19 個控制訊息，這還不包含每次向 NRF 進行的 NF 查找訊息以及例外處理訊息；另外為了要提供更多網路服務，控制訊息內含的資訊元素 (IE) 也越來越多，如果可以加速資訊元素序列化、HTTP2/RESTful 結構的建立、乃至於 TCP 的傳輸效率，便可能大大提升控制層效能，進而讓用戶層更快的被處理到。
 \item \textbf{挑戰 2. 用戶層規則查找:} 在用戶端方面，UPF 會對進入的封包進行規則的查找作為轉發的依據，然而相較於 4G 時只需要對 TEID 或 IP 進行分析，5G 的規則的越趨複雜，包含五種規則的查找、優先序的比較，更甚者隨著 UL-CL (Uplink Classifier) 等功能的加入，會有像 SDF (Service Data Flow) 過濾器的出現，需要進一步做 5 tuples 作過濾，如果可以加速規則查找速度便有機會大幅提升用戶端的效能。
-\item \textbf{挑戰 3. 換手時複雜的下行封包處理:} 根據 TS 23.502 的換手流程 (見圖\ref{fig:n2_hand_exec_proc} 流程 3a 與 3b)，在換手時為了讓下行流量不間段，5G 網路會在 3a 或 3b 流程上進行 直接或間接轉送，亦即此時封包會經過 S-UPF 送到 S-RAN，如果是直接轉送會透過 Xn 界面從 S-RAN 將下行轉送到 T-RAN，如果是間接轉送會將封包先回送到 T-UPF，在送到 T-RAN，可是這樣的過程大量消耗流量並增長下行路徑，尤其是當換手的流程過於緩慢，更是可能造成行動網路移動時的連接不順。
+\item \textbf{挑戰 3. 換手時複雜的下行封包處理:} 根據 TS 23.502 的換手流程 (見圖\ref{fig:n2_hand_exec_proc} 流程 3a 與 3b)，在換手時為了讓下行流量不間斷，5G 網路會在 3a 或 3b 流程上進行 直接或間接轉送，亦即此時封包會經過 S-UPF 送到 S-RAN，如果是直接轉送會透過 Xn 界面從 S-RAN 將下行轉送到 T-RAN，如果是間接轉送會將封包先回送到 T-UPF，在送到 T-RAN，可是這樣的過程大量消耗流量並增長下行路徑，尤其是當換手的流程過於緩慢，更是可能造成行動網路移動時的連接不順。
 \end{itemize}
 
 \begin{figure}[htbp]
