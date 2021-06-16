@@ -99,7 +99,7 @@ PFCP~\cite{3gpp.29.244} 是 SMF 獨有的協議，不存在於除 SMF 與 UPF �
 \end{figure}
 
 % free5GC UPF 架構
-至於 free5GC 用戶端的 NF UPF 則是主要分成三個部分：N4 Handler、UPDK、與 gtp5g~\cite{gtp5g} (見圖~\ref{fig:free5gc_upf_arch})，N4 Handler 主要是負責處理從 SMF 送下來的 PFCP 控制訊號，他會直接透過 Linux UDP Socket 獲取 N4 訊號，解碼 PFCP 後翻譯成 UPF 看得懂的格式，比較有趣的是，因為 PFCP 是遵守 TLV 格式的，因此 free5GC 在撰寫這部分時，是直接解析 3GPP 文件後透過自己撰寫的程式碼生成器 (code generator) 來產生 encoder 與 decoder。UPDK 主要是負責處理用戶端訊息的邏輯，向上他會接收到 N4 Handler 所下的 PDR (Packet Detection Rules) / FAR (Forwarding Action Rules) 指令儲存起來，並在收到相對應的 GTP (GPRS Tunnelling Protocol) 封包後協助 gtp5g kernel module 進行相對應的封包處理。而 gtp5g 則是負責協助處理用戶端界面 N3、N6、與 N9 的 kernel module，在 N6 界面上，會透過 netlink 創造一個虛擬裝置 (virtual device) 來接收從 DN 來的封包，N3 與 N9 則是直接從 netlink module 拿到 routing 進來的封包。
+至於 free5GC 用戶端的 NF UPF 則是主要分成三個部分：N4 Handler、UPDK、與 gtp5g~\cite{gtp5g} (見圖~\ref{fig:free5gc_upf_arch})，N4 Handler 主要是負責處理從 SMF 送下來的 PFCP 控制訊號，他會直接透過 Linux UDP Socket 獲取 N4 訊號，解碼 PFCP 後翻譯成 UPF 看得懂的格式，比較有趣的是，因為 PFCP 是遵守 TLV 格式的，因此 free5GC 在撰寫這部分時，是直接解析 3GPP 文件後透過自己撰寫的程式碼生成器 (code generator) 來產生 encoder 與 decoder。UPDK 主要是負責處理用戶端訊息的邏輯，向上他會接收到 N4 Handler 所下的 PDR (Packet Detection Rules) / FAR (Forwarding Action Rules) 指令儲存起來，並在收到相對應的 GTP (GPRS Tunneling Protocol) 封包後協助 gtp5g kernel module 進行相對應的封包處理。而 gtp5g 則是負責協助處理用戶端界面 N3、N6、與 N9 的 kernel module，在 N6 界面上，會透過 netlink 創造一個虛擬裝置 (virtual device) 來接收從 DN 來的封包，N3 與 N9 則是直接從 netlink module 拿到 routing 進來的封包。
 
 \begin{figure}[htbp]
     \centering
@@ -168,14 +168,14 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 \item \textbf{SDN-enabled:} NF Manager 透過 Open Flow 協議向上支援與 SDN 控制器溝通，並可以讓 SDN 控制器組合多個 Network Function 建立服務鏈 (service chain)。
 \item \textbf{Zero-Copy IO:} 封包透過直接記憶體存取打入 NF Manager 可以存取的共享記憶體空間中，再由 NF Manager 分配給 Network Function 直接存取封包的能力，過程中無需經過多於的封包複製。
 \item \textbf{No Interrupts:} 透過 DPDK 的 polling 模式，封包直接由特定 CPU 固定拉取，而無需透過傳統的中斷 (Interrupt) 處理的方式處理，這可以讓系統在 10Gbps 甚至更高的流量時都還保持著線性的封包處理效能。
-\item \textbf{Scalable:} Network Function 可以被輕鬆的複製擴充，NF Manager 會自動對封包作覆載平衡 (load balence) 以提供最大網路效能。
+\item \textbf{Scalable:} Network Function 可以被輕鬆的複製擴充，NF Manager 會自動對封包做負載平衡 (load balance) 以提供最大網路效能。
 \end{itemize}
 
 % Onvm 架構
 
-根據作者描述~\cite{netvm}\cite{paper.opennetvm}，OpenNetVM 的架構主要分成三個部分：NF Manager、NFlib 與 Network Functions (如圖~\ref{fig:netvm_arch})。NF Manager 負責與網卡溝通、維護 flow table、管理 NF 間的通訊，整個 NF Manager 包含三個線程 (thread)：Manager thread 負責管理共享記憶體跟追蹤 NF 狀態、RX thread 負責從網卡收取封包並分配給對應的 NF、TX thread 負責轉送 NF 要送給其他 NF 或要送到網卡的封包。NFlib 是 OpenNetVM 提供給使用者的 API，透過 NFlib 使用者的程式得以與 NF Manager 溝通以註冊 NF 狀態、獲取封包等。而 NF 則是指使用者開發的程式，NF 會被放置於 Docker 容器內並且透過 NFlib 與 NF Manager 溝通、讓 NF Manager 管理，每個 NF 在啟動時都會被分配到一個 receive ring 與 transmit ring，NF 會透過 NFlib 向 receive ring 獲取進入封包，並將送出封包送進 transmit ring 中。
+根據作者描述~\cite{netvm}~\cite{paper.opennetvm}，OpenNetVM 的架構主要分成三個部分：NF Manager、NFlib 與 Network Functions (如圖~\ref{fig:netvm_arch})。NF Manager 負責與網卡溝通、維護 flow table、管理 NF 間的通訊，整個 NF Manager 包含三個線程 (thread)：Manager thread 負責管理共享記憶體跟追蹤 NF 狀態、RX thread 負責從網卡收取封包並分配給對應的 NF、TX thread 負責轉送 NF 要送給其他 NF 或要送到網卡的封包。NFlib 是 OpenNetVM 提供給使用者的 API，透過 NFlib 使用者的程式得以與 NF Manager 溝通以註冊 NF 狀態、獲取封包等。而 NF 則是指使用者開發的程式，NF 會被放置於 Docker 容器內並且透過 NFlib 與 NF Manager 溝通、讓 NF Manager 管理，每個 NF 在啟動時都會被分配到一個 receive ring 與 transmit ring，NF 會透過 NFlib 向 receive ring 獲取進入封包，並將送出封包送進 transmit ring 中。
 
-在 OpenNetVM 平臺被啟動時，NF Manager 會首先被啟動，並且直至 OpenNetVM 平臺關閉前都會持續運作，NF Manager 會透過 DPDK 在 hubepage 內分配出一塊共享記憶體，用以儲存與維護所有封包，並且此記憶體內的虛擬位址會共享於可以存取此封包的 NF 而無需作額外的轉換或複製。當主機網卡收到封包後，RX thread 會利用 DPDK 將封包輪詢至共享記憶體內，由於 DPDK 的 DMA 與核心旁路 (kernel bypass) 機制，得以讓封包享有零複製 (zero-copy) 的效率，RX thread 在把封包輪詢至共享記憶體後，會逐一檢查封包後將包含封包位址與元資訊 (metadata) 的 packet descriptor 轉送給相對應 NF 的 Receive ring，透過這 packet descriptor，NF 無需再複製封包便可存取到封包的位址與內容。而 TX thead 會執行與 RX thread 類似的功能，差別在於 TX thread 是負責轉送從 NF transmit ring 送出的封包的 packet descriptor，如果要傳送至另一個 NF，TX thread 會將 packet descriptor 提供給另一 NF；而如果是要送出網卡，TX thread 則會透過 DPDK 將封包從網卡送出。
+在 OpenNetVM 平臺被啟動時，NF Manager 會首先被啟動，並且直至 OpenNetVM 平臺關閉前都會持續運作，NF Manager 會透過 DPDK 在 hugepage 內分配出一塊共享記憶體，用以儲存與維護所有封包，並且此記憶體內的虛擬位址會共享於可以存取此封包的 NF 而無需作額外的轉換或複製。當主機網卡收到封包後，RX thread 會利用 DPDK 將封包輪詢至共享記憶體內，由於 DPDK 的 DMA 與核心旁路 (kernel bypass) 機制，得以讓封包享有零複製 (zero-copy) 的效率，RX thread 在把封包輪詢至共享記憶體後，會逐一檢查封包後將包含封包位址與元資訊 (metadata) 的 packet descriptor 轉送給相對應 NF 的 Receive ring，透過這 packet descriptor，NF 無需再複製封包便可存取到封包的位址與內容。而 TX thread 會執行與 RX thread 類似的功能，差別在於 TX thread 是負責轉送從 NF transmit ring 送出的封包的 packet descriptor，如果要傳送至另一個 NF，TX thread 會將 packet descriptor 提供給另一 NF；而如果是要送出網卡，TX thread 則會透過 DPDK 將封包從網卡送出。
 
 在 OpenNetVM 上執行的 NF 會透過 NFlib 與 NF Manager 溝通，在 NF 開始運行時須向 Manager 註冊服務，並且會提供 NFlib 回呼函式 (callback function)，當有 packet descriptor 送進 NF 的 receive ring 時，NFlib 會呼叫回呼函式讓 NF 得以作出相對應的操作，而當 NF 決定好操作後，便會將操作與相對應的 packet descriptor 放進 transmit ring 讓 Manager 執行。另外值得注意的是，除了 NF Manager 中的 Manager thread、RX thread、TX thread 會各佔據一個 CPU 核心外，每個 NF 亦會獨佔一個 CPU 核心。
 
@@ -184,7 +184,7 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
     \includegraphics[height=!,width=1\linewidth,keepaspectratio=true]{figures/netvm-arch.png}
     % [] 放的是顯示在 list of figure 的文字
     % {} 放的是顯示在圖下方的文字
-    \caption[OpenNetVM 架構]{{\footnotesize OpenNetVM 架構 \cite{onvm}}}
+    \caption[OpenNetVM 架構]{{\footnotesize OpenNetVM 架構~\cite{onvm}}}
     \label{fig:netvm_arch}
 \end{figure}
 
@@ -325,7 +325,7 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 
 % 移植理由, free5GC 目前的 downside (weekness)
 
-原生的 free5GC 控制端界面是建構在 Linux 的 Berkeley Socket 上，先將 L4 層以上的負載內容 (payload) 封裝後，再透過呼叫 Berkeley Socket API，來達成封包傳送的功能。但由於 Berkeley Socket 屬於 user space library API，並且在傳送過程中，至少會經過兩次記憶體複製 (memory copy) (會先複製到 per process 的 kernel space memory，再複製到 network device 的 newtowrk queue) (見圖~\ref{fig:kernel_packet_processing_arch})，相對於後來出現的技術諸如 DPDK 或 XDP，實屬效能不彰。另外，即便是將 Network Function 部屬於同一機器上，由於 Berkeley Socket 屬於 RPC，傳送路徑必定會經過 Network Device，無法自動判定為 IPC 而使用更高效率的傳輸方式。基於以上理由，我們希望透過 OpenNetVM 的性質，同時可以於 RPC 下使用 DPDK 功能，與 IPC 使用 shared memory 功能，實現完全零記憶體複製 (zero copy)，以及可於同一主機下使用 IPC 來達到更佳的傳輸效率。除了記憶體複製的問題之外，由於透過 system call 到 kernel 的設計，也會遇到所有 system call 會遇到的問題，像是會有至少兩種中斷 (interrupt)，一個是在呼叫 system call 的中斷，另一個則是因為網卡與記憶體是透過 DMA (direct memory access) 的關係，會在 DMA 機制上需要在把封包搬進記憶體後由網卡打入中斷來呼叫中央處理器進行下一步處理。同時 kernel call 也會因為需要上下文切換 (context switch) 到中斷上下文 (interrupt context) 或甚至是遇到程序排程 (process scheduling) 的上下文切換而消耗大量運算資源與效能。
+原生的 free5GC 控制端界面是建構在 Linux 的 Berkeley Socket 上，先將 L4 層以上的負載內容 (payload) 封裝後，再透過呼叫 Berkeley Socket API，來達成封包傳送的功能。但由於 Berkeley Socket 屬於 user space library API，並且在傳送過程中，至少會經過兩次記憶體複製 (memory copy) (會先複製到 per process 的 kernel space memory，再複製到 network device 的 network queue) (見圖~\ref{fig:kernel_packet_processing_arch})，相對於後來出現的技術諸如 DPDK 或 XDP，實屬效能不彰。另外，即便是將 Network Function 部屬於同一機器上，由於 Berkeley Socket 屬於 RPC，傳送路徑必定會經過 Network Device，無法自動判定為 IPC 而使用更高效率的傳輸方式。基於以上理由，我們希望透過 OpenNetVM 的性質，同時可以於 RPC 下使用 DPDK 功能，與 IPC 使用 shared memory 功能，實現完全零記憶體複製 (zero copy)，以及可於同一主機下使用 IPC 來達到更佳的傳輸效率。除了記憶體複製的問題之外，由於透過 system call 到 kernel 的設計，也會遇到所有 system call 會遇到的問題，像是會有至少兩種中斷 (interrupt)，一個是在呼叫 system call 的中斷，另一個則是因為網卡與記憶體是透過 DMA (direct memory access) 的關係，會在 DMA 機制上需要在把封包搬進記憶體後由網卡打入中斷來呼叫中央處理器進行下一步處理。同時 kernel call 也會因為需要上下文切換 (context switch) 到中斷上下文 (interrupt context) 或甚至是遇到程序排程 (process scheduling) 的上下文切換而消耗大量運算資源與效能。
 
 \begin{figure}[htbp]
     \centering
@@ -395,11 +395,11 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 % SMF 的改進
 
 % 開發選擇
-在 SMF 移植的設計上，由於 OpenNetVM 所提供的是 C 語言的 API，而 free5GC 的 SMF 所使用的是 Golang 語言開發，因此需要考慮到如何跨語言移植。在設計之初有考慮是否需要透過 IPC 溝通，另外啟動一個 relay 將 SMF 的訊息 (message) 先透過 IPC 傳送到n relay process，再由 relay process 呼叫 OpenNetVM API。但由於發現 Golang 本身有提供 CGO 的功能，透過指定語法可以直接呼叫 C 語言 API，因此我們決定以此方法，減少 IPC 溝通的效能損耗。CGO 提供 C 呼叫 Go 語言函式或是 Go 呼叫 C 語言函式，若是以 C 呼叫 Golang，需要先將 Go 函式庫編譯成 share object library (.so 或 .dll 檔)，之後再讓 C 語言透過 share object 的方式呼叫，呼叫過程中由於已經編譯成 object file 並使用 dynimic linking 的方式，是由程式跑起來後 loader 來處理，因此對 caller (C 語言程式) 幾乎沒有任何限制。反之如果是 Golang 呼叫 C 語言函式庫，則會有較多限制，例如 callee 部可以有信號 (signal) 呼叫 (基於 golang 本身訊號覆蓋(signal mask)機制)、部分型別需要做強型別轉換、需要透過 cgo flag 讓編譯器或連結器得到相對 library 絕對位置等等。
+在 SMF 移植的設計上，由於 OpenNetVM 所提供的是 C 語言的 API，而 free5GC 的 SMF 所使用的是 Golang 語言開發，因此需要考慮到如何跨語言移植。在設計之初有考慮是否需要透過 IPC 溝通，另外啟動一個 relay 將 SMF 的訊息 (message) 先透過 IPC 傳送到n relay process，再由 relay process 呼叫 OpenNetVM API。但由於發現 Golang 本身有提供 CGO 的功能，透過指定語法可以直接呼叫 C 語言 API，因此我們決定以此方法，減少 IPC 溝通的效能損耗。CGO 提供 C 呼叫 Go 語言函式或是 Go 呼叫 C 語言函式，若是以 C 呼叫 Golang，需要先將 Go 函式庫編譯成 share object library (.so 或 .dll 檔)，之後再讓 C 語言透過 share object 的方式呼叫，呼叫過程中由於已經編譯成 object file 並使用 dynamic linking 的方式，是由程式跑起來後 loader 來處理，因此對 caller (C 語言程式) 幾乎沒有任何限制。反之如果是 Golang 呼叫 C 語言函式庫，則會有較多限制，例如 callee 部可以有信號 (signal) 呼叫 (基於 golang 本身訊號覆蓋(signal mask)機制)、部分型別需要做強型別轉換、需要透過 cgo flag 讓編譯器或連結器得到相對 library 絕對位置等等。
 
-儘管透過 C program 呼叫 Golang shared library 在實踐成本上遠低於使用 Golang 呼叫 C library，但我們希望在程式設計上可以提供更高的擴充性 (scalibility) 與更加一般化 (generalize)，且若可以設計成 函式庫 (library) 形式，會更加利於使用者使用且可以不僅限此專案使用，因此我們希望嘗試以可以直接使用之 Golang 函式庫方向開發。
+儘管透過 C program 呼叫 Golang shared library 在實踐成本上遠低於使用 Golang 呼叫 C library，但我們希望在程式設計上可以提供更高的擴充性 (scalability) 與更加一般化 (generalize)，且若可以設計成 函式庫 (library) 形式，會更加利於使用者使用且可以不僅限此專案使用，因此我們希望嘗試以可以直接使用之 Golang 函式庫方向開發。
 
-由於從 OpenNetVM API 上獲取的封包是直接傳回封包所在記憶體位置的指標，而封包為連結層 (link layer) 之上的內容，因此我們決定開發成類似 Goalng 原生之 net 函式庫，透過 Golang 所提供的 interface 性質，直接取代掉 PFCP 底層之 \lstinline[language=Go]{net.UdpConn} interface，我們命名之 \lstinline[language=Go]{onvmNet.ONVMConn} interface~\cite{github.onvmNet} (見圖~\ref{fig:smf_porting_arch})。
+由於從 OpenNetVM API 上獲取的封包是直接傳回封包所在記憶體位置的指標，而封包為連結層 (link layer) 之上的內容，因此我們決定開發成類似 Golang 原生之 net 函式庫，透過 Golang 所提供的 interface 性質，直接取代掉 PFCP 底層之 \lstinline[language=Go]{net.UdpConn} interface，我們命名之 \lstinline[language=Go]{onvmNet.ONVMConn} interface~\cite{github.onvmNet} (見圖~\ref{fig:smf_porting_arch})。
 
 \begin{figure}[htbp]
     \centering
@@ -457,7 +457,7 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 
 另外在設計封包收取 (\lstinline[language=Go]{ReceiveFrom}) 時，需要判斷此封包屬於那一個連線 (connection) 的，因此我們設計了 \lstinline{channelMap}，每個連線在聽到 (listen) 連線時會開出一個對應的 channel 並放入 channelMap，當處理者 (handler) 收到 OpenNetVM 給予的封包後，透過 HashMap 的方式以 $O(1)$ 的速度搜尋出相對應的 channel，再將封包送入 channel 得以送到正確的連線中。
 
-設計完 onvmNet 函式庫後，之需將 free5GC 內部 PFCP 函式庫內有呼叫到 \lstinline[language=Go]{net.UDPConn} 的部分改成呼叫 \lstinline[language=Go]{onvmNet.ONVMConn}。另外由於 free5GC 是透過 go module 來維護套件，因此還需跟新 go.mod 之內容。而若有其他 Golang 專案想要嘗試使用 OpenNetVM 平臺，僅需作相同的取代，即可快速移植 (見圖~\ref{fig:onvm_smf_arch})。
+設計完 onvmNet 函式庫後，之需將 free5GC 內部 PFCP 函式庫內有呼叫到 \lstinline[language=Go]{net.UDPConn} 的部分改成呼叫 \lstinline[language=Go]{onvmNet.ONVMConn}。另外由於 free5GC 是透過 go module 來維護套件，因此還需更新 go.mod 之內容。而若有其他 Golang 專案想要嘗試使用 OpenNetVM 平臺，僅需作相同的取代，即可快速移植 (見圖~\ref{fig:onvm_smf_arch})。
 
 % ONVM NF 總架構圖
 \begin{figure}[htbp]
@@ -518,14 +518,14 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
     \end{tikzpicture}
     \caption[\LHCN NF 架構]{{\footnotesize \LHCN NF 架構}}
     \label{fig:onvm_nf_arch}
-\end{figure}
+\end{figure}x
 
 \section{UPF 開發細節}
 \label{sec:upf_porting}
 
-在用戶端的開發上有別於 free5GC 使用 gtp5g 這個 kernel module 開發，\LHCN 提供了一個使用者空間核心旁路的 UPF。雖然使用 gtp5g 可以重複使用核心提供的網路疊，且會在核心空間直接進行用戶封包的封裝或解封，可以避免重複複製到使用者空間，但還是會遇到章節~\ref{sec:challenge}所提到效能損耗，另外藉由核心開發的封包處理會需要透過中斷呼叫來溝通\cite{interrupt_process}與重複記憶體複製等效能瓶頸，而 UPF 又是核心網路中用戶端唯一且最重要的 NF，因此我們認為更應該對其作效能上的加速。相對於高度核心依賴的 gtp5g-UPF，我們著重發展於軟體虛擬化的 UPF 功能，將 UPF 拆成兩個子部件：UPF-C 與 UPF-U，UPF-C 負責控制訊號的接收處理，而 UPF-U 則負責對用戶封包進行規則查找與轉發，這兩個子部件分別會以不同的 OpenNetVM NF 包覆。
+在用戶端的開發上有別於 free5GC 使用 gtp5g 這個 kernel module 開發，\LHCN 提供了一個使用者空間核心旁路的 UPF。雖然使用 gtp5g 可以重複使用核心提供的網路疊，且會在核心空間直接進行用戶封包的封裝或解封，可以避免重複複製到使用者空間，但還是會遇到章節~\ref{sec:challenge}所提到效能損耗，另外藉由核心開發的封包處理會需要透過中斷呼叫來溝通~\cite{interrupt_process}與重複記憶體複製等效能瓶頸，而 UPF 又是核心網路中用戶端唯一且最重要的 NF，因此我們認為更應該對其作效能上的加速。相對於高度核心依賴的 gtp5g-UPF，我們著重發展於軟體虛擬化的 UPF 功能，將 UPF 拆成兩個子部件：UPF-C 與 UPF-U，UPF-C 負責控制訊號的接收處理，而 UPF-U 則負責對用戶封包進行規則查找與轉發，這兩個子部件分別會以不同的 OpenNetVM NF 包覆。
 
-如圖\ref{fig:onvm_nf_arch}，當 SMF 向 UPF 發起控制訊號時，會透過 PFCP 協定傳送至 UPF-C，由於 \LHCN 是透過共享記憶體作相同節點跨 NF 的溝通，我們沿用的 PFCP 的封裝格式但捨棄其底層 UDP 的傳輸協議，而是直接將封包放置於記憶體上提供互相存取以提升溝通效率。當 UPF-C 收到 PFCP 訊息後，會根據 TLV 格式將 PFCP 解碼，並小心的將內部資訊翻譯後放置於 UPF-C 與 UPF-U 可共同存取的地方。如圖~\ref{fig:onvm_nf_arch} 與圖~\ref{fig:onvm_upf_flow} 所示，UPF 會將上行 (UL) 與下行 (DL) 的規則分開儲存，各自維護一個 User Session 表格，在 User Session 表格內會存有各自的 Session Context，而這些上下文又會透過 TSS 資料結構儲存各種 session 內的規則用以接下來的規則查詢。
+如圖~\ref{fig:onvm_nf_arch}，當 SMF 向 UPF 發起控制訊號時，會透過 PFCP 協定傳送至 UPF-C，由於 \LHCN 是透過共享記憶體作相同節點跨 NF 的溝通，我們沿用的 PFCP 的封裝格式但捨棄其底層 UDP 的傳輸協議，而是直接將封包放置於記憶體上提供互相存取以提升溝通效率。當 UPF-C 收到 PFCP 訊息後，會根據 TLV 格式將 PFCP 解碼，並小心的將內部資訊翻譯後放置於 UPF-C 與 UPF-U 可共同存取的地方。如圖~\ref{fig:onvm_nf_arch} 與圖~\ref{fig:onvm_upf_flow} 所示，UPF 會將上行 (UL) 與下行 (DL) 的規則分開儲存，各自維護一個 User Session 表格，在 User Session 表格內會存有各自的 Session Context，而這些上下文又會透過 TSS 資料結構儲存各種 session 內的規則用以接下來的規則查詢。
 
 \begin{figure}[htbp]
     \centering
