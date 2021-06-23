@@ -251,14 +251,14 @@
 
 % 強調 core network 因為 NFV 化，所以不再依賴硬體而可以部屬於同一 host，是否保持用 RPC 溝通就是可以重新審視的問題
 
-5G 核心網路透過改變架構希望達到三大訴求：增強行動頻寬 (eMBB)、高可靠低延遲 (URLLC)、大量機器連線 (MMTC)，以達到更廣泛的使用體驗，例如 VR 應用便要求低於 20ms 的延遲\cite{URLLVR}，而 AR 更是需要低於 5ms 的延遲才能有最佳的使用者體驗\cite{cloud_arvr_wp}，另外像 4K 影像串流就至少需要 32Mbps 的下載頻寬\cite{4k_req}。
+5G 核心網路透過改變架構希望達到三大訴求：增強行動頻寬 (eMBB)、高可靠低延遲 (URLLC)、大量機器連線 (MMTC)，以達到更廣泛的使用體驗，例如 VR 應用便要求低於 20ms 的延遲~\cite{URLLVR}，而 AR 更是需要低於 5ms 的延遲才能有最佳的使用者體驗~\cite{cloud_arvr_wp}，另外像 4K 影像串流就至少需要 32Mbps 的下載頻寬~\cite{4k_req}。
 
-然而就目前的 5G 架構，儘管在 mm-Wave 上已經可以把延遲降低至 1ms \cite{LLmmWave}，並將頻寬提升至 10Gbps，但核心網路尚不能保證提供高流量低延遲的服務，其原因包含
+然而就目前的 5G 架構，儘管在 mm-Wave 上已經可以把延遲降低至 1ms~\cite{LLmmWave}，並將頻寬提升至 10Gbps，但核心網路尚不能保證提供高流量低延遲的服務，其原因包含
 \begin{enumerate*}
 \item 多個 NF 與 SBA 的設計，由於 5G 的連線建立流程與 4G 大致相同，又將不同功能細分成不同 NF，各 NF 間的溝通勢必會增加整個流程的延遲，
 \item NFV 的架構將使控制訊號無法依賴硬體加速，反而相較於 4G 以前的硬體網路功能更為高延遲低流量，
-\item 流程保持 4G 的階段性完成，在控制端完成功能前用戶端都無法取用資源，這讓控制端大幅影響用戶端的使用效能。例如取得需要先完成註冊與連線建立流程，而此論文\cite{paper.DPCM}指出在 4G 時，光是 UE 的連線建立流程就可能會消耗 999.5ms，而在高速移動下更是需要完成多次換手 (handover) 流程，但因換手需消耗 1.9 秒\cite{paper.DPCM}，導致高速移動時的行動網路體驗將會大打折扣，
-\item 於 2023 年會有 44 億個 M2M 或 IoT 裝置連線上行動網路\cite{cisco_internet_report_2023}，如此大量的裝置勢必無法被現有的核網資源所承載。
+\item 流程保持 4G 的階段性完成，在控制端完成功能前用戶端都無法取用資源，這讓控制端大幅影響用戶端的使用效能。例如取得需要先完成註冊與連線建立流程，而此論文~\cite{paper.DPCM}指出在 4G 時，光是 UE 的連線建立流程就可能會消耗 999.5ms，而在高速移動下更是需要完成多次換手 (handover) 流程，但因換手需消耗 1.9 秒~\cite{paper.DPCM}，導致高速移動時的行動網路體驗將會大打折扣，
+\item 於 2023 年會有 44 億個 M2M 或 IoT 裝置連線上行動網路~\cite{cisco_internet_report_2023}，如此大量的裝置勢必無法被現有的核網資源所承載。
 \end{enumerate*}
 
 以下我們列舉了現行核心網路所遇到的挑戰：
@@ -266,7 +266,7 @@
 \begin{itemize}
 \item \textbf{挑戰 1. 控制層處理流程:} 由於 5G 核網 SBA 的架構，相較於 4G 核網，控制訊息交換的數量大量提升，這使的控制訊息的傳遞速度延遲被等倍放大，光是註冊流程在核網內就至少有超過 19 個控制訊息，這還不包含每次向 NRF 進行的 NF 查找訊息以及例外處理訊息；另外為了要提供更多網路服務，控制訊息內含的資訊元素 (IE) 也越來越多，如果可以加速資訊元素序列化、HTTP2/RESTful 結構的建立、乃至於 TCP 的傳輸效率，便可能大大提升控制層效能，進而讓用戶層更快的被處理到。
 \item \textbf{挑戰 2. 用戶層規則查找:} 在用戶端方面，UPF 會對進入的封包進行規則的查找作為轉發的依據，然而相較於 4G 時只需要對 TEID 或 IP 進行分析，5G 的規則的越趨複雜，包含五種規則的查找、優先序的比較，更甚者隨著 UL-CL (Uplink Classifier) 等功能的加入，會有像 SDF (Service Data Flow) 過濾器的出現，需要進一步做 5 tuples 作過濾，如果可以加速規則查找速度便有機會大幅提升用戶端的效能。
-\item \textbf{挑戰 3. 換手時複雜的下行封包處理:} 根據 TS 23.502 的換手流程 (見圖\ref{fig:n2_hand_exec_proc} 流程 3a 與 3b)，在換手時為了讓下行流量不間斷，5G 網路會在 3a 或 3b 流程上進行 直接或間接轉送，亦即此時封包會經過 S-UPF 送到 S-RAN，如果是直接轉送會透過 Xn 界面從 S-RAN 將下行轉送到 T-RAN，如果是間接轉送會將封包先回送到 T-UPF，在送到 T-RAN，可是這樣的過程大量消耗流量並增長下行路徑，尤其是當換手的流程過於緩慢，更是可能造成行動網路移動時的連接不順。
+\item \textbf{挑戰 3. 換手時複雜的下行封包處理:} 根據 TS 23.502 的換手流程 (見圖~\ref{fig:n2_hand_exec_proc} 流程 3a 與 3b)，在換手時為了讓下行流量不間斷，5G 網路會在 3a 或 3b 流程上進行 直接或間接轉送，亦即此時封包會經過 S-UPF 送到 S-RAN，如果是直接轉送會透過 Xn 界面從 S-RAN 將下行轉送到 T-RAN，如果是間接轉送會將封包先回送到 T-UPF，在送到 T-RAN，可是這樣的過程大量消耗流量並增長下行路徑，尤其是當換手的流程過於緩慢，更是可能造成行動網路移動時的連接不順。
 \end{itemize}
 
 \begin{figure}[htbp]
@@ -274,7 +274,7 @@
     \includegraphics[height=!,width=0.9\linewidth,keepaspectratio=true]{figures/23_502_4_9_1_3_3-1_N2_handover_exec.png}
     % [] 放的是顯示在 list of figure 的文字
     % {} 放的是顯示在圖下方的文字
-    \caption[N2 Handover 執行階段流程]{{\footnotesize N2 Handover 執行階段流程 (取自 TS 23.502 Figure 4.9.1.3.3-1\cite{3gpp.23.502})}}
+    \caption[N2 Handover 執行階段流程]{{\footnotesize N2 Handover 執行階段流程 (取自 TS 23.502 Figure 4.9.1.3.3-1~\cite{3gpp.23.502})}}
     \label{fig:n2_hand_exec_proc}
 \end{figure}
 

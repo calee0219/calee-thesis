@@ -236,6 +236,7 @@
 
 % The name of your degree's field (e.g. Psychology, Computer Science)
 \def\field#1{\gdef\@field{#1}}
+\def\awarded#1{\gdef\@awarded{#1}}
 
 % The type of thesis in English
 \def\thesistype#1{\gdef\@thesistype{#1}}
@@ -391,6 +392,10 @@
   \renewcommand{\listtablename}{\makebox[4em][s]{\@lottitle}}%
   \renewcommand{\tablename}{表}%
   \renewcommand{\figurename}{圖}%
+  \renewcommand{\cftfigpresnum}{圖~}%
+  \setlength{\cftfignumwidth}{4em}%
+  \renewcommand{\cfttabpresnum}{表~}%
+  \setlength{\cfttabnumwidth}{4em}%
 \else
   \renewcommand{\contentsname}{\@toctitle}%
   \renewcommand{\listfigurename}{\@loftitle}%
@@ -649,7 +654,9 @@
             \begingroup
             \fontsize{16}{16}\selectfont
             \@university\\
-            \@thesistype\\
+            \ifTHESISOPTIONmaster
+            Master \@thesistype\\
+            \fi
             \endgroup
 
             \vspace{\baselineskip}
@@ -701,98 +708,97 @@
 % Title Page
 %-------------------------------------------------------------------------------
 
-\def\titlepage
-{
-  \cleardoublepage
-  \ClearShipoutPicture  % remove watermark in this page
-  \thispagestyle{empty}
-% Chines & English titles
-  \begin{center}
-      \onehalfspacing
-      \fontsize{18}{18}\selectfont
-      \begingroup
-      \@titlezh\\
-      \@title\\
-      \endgroup
-  \end{center}
-  \vspace{\baselineskip}
-  % Author name and advisor name in Chinese and English
-  \begin{figure}[h!]
-      \centering
-      \begin{subfigure}[b]{0.8\textwidth}
-          \begin{flushleft}
-              \singlespacing
-              \setlength{\tabcolsep}{0.25em}
-              % Chinese name
-              \begin{tabular}{rl}%
-                  \large{\makebox[4em][s]{研究生}：}&\large{\@authorzh}\vspace{0.5em}\\%
-                  \large{指導教授：}&{\large{\@advisorzh\ \@advisorTitlezh}}\\%
-                  \ifx \@coadvisorAzh \@empty \else
-                  &{\large{\@coadvisorAzh}}\\%
-                  \fi
-                  \ifx \@coadvisorBzh \@empty \else
-                  &{\large{\@coadvisorBzh}}\\%
-                  \fi
-              \end{tabular}%
-              \hfill
-              % English name
-              \begin{tabular}{rl}%
-                  \large{Student:}&{\large{\@authorFN\ \@authorLN}}\vspace{0.5em}\\%
-                  \large{Advisor:}&{\large{\@advisorTitle\ \@advisorFN\ \@advisorLN}}\\%
-                  \ifx \@coadvisorA \@empty \else
-                  &{\large{\@coadvisorA}}\\%
-                  \fi
-                  \ifx \@coadvisorB \@empty \else
-                  &{\large{\@coadvisorB}}\\%
-                  \fi
-              \end{tabular}
-          \end{flushleft}
-      \end{subfigure}
-  \end{figure}
-  \vfill
-  % University & institute & thesis type in Chinese
-  \begin{center}
-      \begingroup
-      \onehalfspacing
-      \fontsize{14}{14}\selectfont
-      % University
-      \@universityzh\\
-      % Institute
-      \@institutezh\\
-      % Thesis type
-      \@thesistypezh\\
-      \ifTHESISOPTIONdraft
-      初稿\\
-      \fi
-      \endgroup
-      \vfill
-      % Submission description in English
-      \begingroup
-      \singlespacing
-      \fontsize{14}{14}\selectfont
-      \ifTHESISOPTIONdraft
-      \centerline{{A \@thesistype\ Draft}}%
-      \else
-      \centerline{{A \@thesistype}}%
-      \fi
-      Submitted to {\@institute}\\
-      \@college\\
-      \@university\\
-      in Partial Fulfilment of the Requirements\\
-      for the Degree of\\
-      \@degree\\
-      in\\
-      \@field\\
-      \endgroup
-      \vspace{\baselineskip}
-      \vfill
-      % Submission date and location
-            {{\@degreemonth} {\@degreeyear}}\\
-            \@location\\
-            \vspace{0.25\baselineskip}
-            %\vfill{0.25}
-            \makebox[1.75\width][s]{\normalsize\@degreeyearzh}
-  \end{center}
+\def\titlepage{
+    \cleardoublepage
+    \ClearShipoutPicture  % remove watermark in this page
+    \thispagestyle{empty}
+    % Chines & English titles
+    \begin{center}
+        \onehalfspacing
+        \fontsize{18}{18}\selectfont
+        \begingroup
+        \@titlezh\\
+        \@title\\
+        \endgroup
+    \end{center}
+    \vspace{\baselineskip}
+    % Author name and advisor name in Chinese and English
+    \begin{figure}[h!]
+        \centering
+        \begin{subfigure}[b]{0.8\textwidth}
+            \begin{flushleft}
+                \singlespacing
+                \setlength{\tabcolsep}{0.25em}
+                % Chinese name
+                \begin{tabular}{rl}%
+                    \large{\makebox[4em][s]{研究生}：}&\large{\@authorzh}\vspace{0.5em}\\%
+                    \large{指導教授：}&{\large{\@advisorzh\ 博士}}\\%
+                    \ifx \@coadvisorAzh \@empty \else
+                    &{\large{\@coadvisorAzh}}\\%
+                    \fi
+                    \ifx \@coadvisorBzh \@empty \else
+                    &{\large{\@coadvisorBzh}}\\%
+                    \fi
+                \end{tabular}%
+                \hfill
+                % English name
+                \begin{tabular}{rl}%
+                    \large{Student:}&{\large{\@authorFN\ \@authorLN}}\vspace{0.5em}\\%
+                    \large{Advisor:}&{\large{Dr. \@advisorFN\ \@advisorLN}}\\%
+                    \ifx \@coadvisorA \@empty \else
+                    &{\large{\@coadvisorA}}\\%
+                    \fi
+                    \ifx \@coadvisorB \@empty \else
+                    &{\large{\@coadvisorB}}\\%
+                    \fi
+                \end{tabular}
+            \end{flushleft}
+        \end{subfigure}
+    \end{figure}
+    \vfill
+    % University & institute & thesis type in Chinese
+    \begin{center}
+        \begingroup
+        \onehalfspacing
+        \fontsize{14}{14}\selectfont
+        % University
+        \@universityzh\\
+        % Institute
+        \@institutezh\\
+        % Thesis type
+        \@thesistypezh\\
+        \ifTHESISOPTIONdraft
+        初稿\\
+        \fi
+        \endgroup
+        \vfill
+        % Submission description in English
+        \begingroup
+        \singlespacing
+        \fontsize{14}{14}\selectfont
+        \ifTHESISOPTIONdraft
+        \centerline{{A \@thesistype\ Draft}}%
+        \else
+        \centerline{{A \@thesistype}}%
+        \fi
+        Submitted to {\@institute}\\
+        \@college\\
+        \@university\\
+        in Partial Fulfilment of the Requirements\\
+        for the Degree of\\
+        {\@degree\ of \@field}\\
+        in\\
+        \@awarded\\
+        \endgroup
+        \vspace{\baselineskip}
+        \vfill
+        % Submission date and location
+              {{\@degreemonth} {\@degreeyear}}\\
+              \@location\\
+              \vspace{0.25\baselineskip}
+              %\vfill{0.25}
+              \makebox[1.75\width][s]{\normalsize\@degreeyearzh}
+    \end{center}
 }
 
 %-------------------------------------------------------------------------------
@@ -858,9 +864,6 @@
 % Cover page
   \coverpage
 
-% Set page numbering to 'roman' (i, ii, iii, ...)
-  \frontmatter
-
 % Title page
   \titlepage
 
@@ -879,6 +882,9 @@
   \fi\fi
 \fi
 
+% Set page numbering to 'roman' (i, ii, iii, ...)
+\frontmatter
+
 % Reset page counter to zero, so that roman-style page numbering
 % can start from the abstract page.
 \ifTHESISOPTIONnctupagenum
@@ -891,8 +897,7 @@
 %-------------------------------------------------------------------------------
 
 % Page layout of Chinese abstract
-\def\abszhpage
-{
+\def\abszhpage{
   \cleardoublepage
   % Reserve pages for 授權書 + 中/英審定書 in final mode if book-style page
   % numbering is used
@@ -1012,8 +1017,8 @@
 {
   \cleardoublepage
   \ClearShipoutPicture  % remove watermark in this page
-  \phantomsection
-  \addcontentsline{toc}{chapter}{\textbf{\@acktitle}}
+  %\phantomsection
+  %\addcontentsline{toc}{chapter}{\textbf{\@acktitle}}
   \begin{center}
     \ifTHESISOPTIONzh
       {\LARGE \bf \makebox[3em][s]{\@acktitle}}\\

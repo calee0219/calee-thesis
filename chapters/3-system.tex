@@ -173,7 +173,7 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
 
 % Onvm 架構
 
-根據作者描述~\cite{netvm}\cite{paper.opennetvm}，OpenNetVM 的架構主要分成三個部分：NF Manager、NFlib 與 Network Functions (如圖~\ref{fig:netvm_arch})。NF Manager 負責與網卡溝通、維護 flow table、管理 NF 間的通訊，整個 NF Manager 包含三個線程 (thread)：Manager thread 負責管理共享記憶體跟追蹤 NF 狀態、RX thread 負責從網卡收取封包並分配給對應的 NF、TX thread 負責轉送 NF 要送給其他 NF 或要送到網卡的封包。NFlib 是 OpenNetVM 提供給使用者的 API，透過 NFlib 使用者的程式得以與 NF Manager 溝通以註冊 NF 狀態、獲取封包等。而 NF 則是指使用者開發的程式，NF 會被放置於 Docker 容器內並且透過 NFlib 與 NF Manager 溝通、讓 NF Manager 管理，每個 NF 在啟動時都會被分配到一個 receive ring 與 transmit ring，NF 會透過 NFlib 向 receive ring 獲取進入封包，並將送出封包送進 transmit ring 中。
+根據作者描述~\cite{netvm}~\cite{paper.opennetvm}，OpenNetVM 的架構主要分成三個部分：NF Manager、NFlib 與 Network Functions (如圖~\ref{fig:netvm_arch})。NF Manager 負責與網卡溝通、維護 flow table、管理 NF 間的通訊，整個 NF Manager 包含三個線程 (thread)：Manager thread 負責管理共享記憶體跟追蹤 NF 狀態、RX thread 負責從網卡收取封包並分配給對應的 NF、TX thread 負責轉送 NF 要送給其他 NF 或要送到網卡的封包。NFlib 是 OpenNetVM 提供給使用者的 API，透過 NFlib 使用者的程式得以與 NF Manager 溝通以註冊 NF 狀態、獲取封包等。而 NF 則是指使用者開發的程式，NF 會被放置於 Docker 容器內並且透過 NFlib 與 NF Manager 溝通、讓 NF Manager 管理，每個 NF 在啟動時都會被分配到一個 receive ring 與 transmit ring，NF 會透過 NFlib 向 receive ring 獲取進入封包，並將送出封包送進 transmit ring 中。
 
 在 OpenNetVM 平臺被啟動時，NF Manager 會首先被啟動，並且直至 OpenNetVM 平臺關閉前都會持續運作，NF Manager 會透過 DPDK 在 hugepage 內分配出一塊共享記憶體，用以儲存與維護所有封包，並且此記憶體內的虛擬位址會共享於可以存取此封包的 NF 而無需作額外的轉換或複製。當主機網卡收到封包後，RX thread 會利用 DPDK 將封包輪詢至共享記憶體內，由於 DPDK 的 DMA 與核心旁路 (kernel bypass) 機制，得以讓封包享有零複製 (zero-copy) 的效率，RX thread 在把封包輪詢至共享記憶體後，會逐一檢查封包後將包含封包位址與元資訊 (metadata) 的 packet descriptor 轉送給相對應 NF 的 Receive ring，透過這 packet descriptor，NF 無需再複製封包便可存取到封包的位址與內容。而 TX thread 會執行與 RX thread 類似的功能，差別在於 TX thread 是負責轉送從 NF transmit ring 送出的封包的 packet descriptor，如果要傳送至另一個 NF，TX thread 會將 packet descriptor 提供給另一 NF；而如果是要送出網卡，TX thread 則會透過 DPDK 將封包從網卡送出。
 
@@ -184,7 +184,7 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
     \includegraphics[height=!,width=1\linewidth,keepaspectratio=true]{figures/netvm-arch.png}
     % [] 放的是顯示在 list of figure 的文字
     % {} 放的是顯示在圖下方的文字
-    \caption[OpenNetVM 架構]{{\footnotesize OpenNetVM 架構 \cite{onvm}}}
+    \caption[OpenNetVM 架構]{{\footnotesize OpenNetVM 架構~\cite{onvm}}}
     \label{fig:netvm_arch}
 \end{figure}
 
@@ -518,14 +518,14 @@ OpenNetVM~\cite{onvm} 是一個由 加利福尼亞大學河濱分校 (UCR) 與 �
     \end{tikzpicture}
     \caption[\LHCN NF 架構]{{\footnotesize \LHCN NF 架構}}
     \label{fig:onvm_nf_arch}
-\end{figure}
+\end{figure}x
 
 \section{UPF 開發細節}
 \label{sec:upf_porting}
 
-在用戶端的開發上有別於 free5GC 使用 gtp5g 這個 kernel module 開發，\LHCN 提供了一個使用者空間核心旁路的 UPF。雖然使用 gtp5g 可以重複使用核心提供的網路疊，且會在核心空間直接進行用戶封包的封裝或解封，可以避免重複複製到使用者空間，但還是會遇到章節~\ref{sec:challenge}所提到效能損耗，另外藉由核心開發的封包處理會需要透過中斷呼叫來溝通\cite{interrupt_process}與重複記憶體複製等效能瓶頸，而 UPF 又是核心網路中用戶端唯一且最重要的 NF，因此我們認為更應該對其作效能上的加速。相對於高度核心依賴的 gtp5g-UPF，我們著重發展於軟體虛擬化的 UPF 功能，將 UPF 拆成兩個子部件：UPF-C 與 UPF-U，UPF-C 負責控制訊號的接收處理，而 UPF-U 則負責對用戶封包進行規則查找與轉發，這兩個子部件分別會以不同的 OpenNetVM NF 包覆。
+在用戶端的開發上有別於 free5GC 使用 gtp5g 這個 kernel module 開發，\LHCN 提供了一個使用者空間核心旁路的 UPF。雖然使用 gtp5g 可以重複使用核心提供的網路疊，且會在核心空間直接進行用戶封包的封裝或解封，可以避免重複複製到使用者空間，但還是會遇到章節~\ref{sec:challenge}所提到效能損耗，另外藉由核心開發的封包處理會需要透過中斷呼叫來溝通~\cite{interrupt_process}與重複記憶體複製等效能瓶頸，而 UPF 又是核心網路中用戶端唯一且最重要的 NF，因此我們認為更應該對其作效能上的加速。相對於高度核心依賴的 gtp5g-UPF，我們著重發展於軟體虛擬化的 UPF 功能，將 UPF 拆成兩個子部件：UPF-C 與 UPF-U，UPF-C 負責控制訊號的接收處理，而 UPF-U 則負責對用戶封包進行規則查找與轉發，這兩個子部件分別會以不同的 OpenNetVM NF 包覆。
 
-如圖\ref{fig:onvm_nf_arch}，當 SMF 向 UPF 發起控制訊號時，會透過 PFCP 協定傳送至 UPF-C，由於 \LHCN 是透過共享記憶體作相同節點跨 NF 的溝通，我們沿用的 PFCP 的封裝格式但捨棄其底層 UDP 的傳輸協議，而是直接將封包放置於記憶體上提供互相存取以提升溝通效率。當 UPF-C 收到 PFCP 訊息後，會根據 TLV 格式將 PFCP 解碼，並小心的將內部資訊翻譯後放置於 UPF-C 與 UPF-U 可共同存取的地方。如圖~\ref{fig:onvm_nf_arch} 與圖~\ref{fig:onvm_upf_flow} 所示，UPF 會將上行 (UL) 與下行 (DL) 的規則分開儲存，各自維護一個 User Session 表格，在 User Session 表格內會存有各自的 Session Context，而這些上下文又會透過 TSS 資料結構儲存各種 session 內的規則用以接下來的規則查詢。
+如圖~\ref{fig:onvm_nf_arch}，當 SMF 向 UPF 發起控制訊號時，會透過 PFCP 協定傳送至 UPF-C，由於 \LHCN 是透過共享記憶體作相同節點跨 NF 的溝通，我們沿用的 PFCP 的封裝格式但捨棄其底層 UDP 的傳輸協議，而是直接將封包放置於記憶體上提供互相存取以提升溝通效率。當 UPF-C 收到 PFCP 訊息後，會根據 TLV 格式將 PFCP 解碼，並小心的將內部資訊翻譯後放置於 UPF-C 與 UPF-U 可共同存取的地方。如圖~\ref{fig:onvm_nf_arch} 與圖~\ref{fig:onvm_upf_flow} 所示，UPF 會將上行 (UL) 與下行 (DL) 的規則分開儲存，各自維護一個 User Session 表格，在 User Session 表格內會存有各自的 Session Context，而這些上下文又會透過 TSS 資料結構儲存各種 session 內的規則用以接下來的規則查詢。
 
 \begin{figure}[htbp]
     \centering
