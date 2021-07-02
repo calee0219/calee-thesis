@@ -787,8 +787,8 @@
         in Partial Fulfilment of the Requirements\\
         for the Degree of\\
         {\@degree\ of \@field}\\
-        in\\
-        \@awarded\\
+        %in\\
+        %\@awarded\\
         \endgroup
         \vspace{\baselineskip}
         \vfill
